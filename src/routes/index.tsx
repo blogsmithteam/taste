@@ -6,6 +6,8 @@ import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { Dashboard } from '../pages/Dashboard';
 import CreateNote from '../pages/CreateNote';
 import { TastingNotes } from '../pages/TastingNotes';
+import NotePage from '../pages/NotePage';
+import NotFound from '../pages/NotFound';
 
 export const router = createBrowserRouter([
   {
@@ -49,11 +51,15 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/notes/:noteId',
+    path: '/notes/:id',
     element: (
       <ProtectedRoute>
-        <TastingNotes />
+        <NotePage />
       </ProtectedRoute>
     ),
+  },
+  {
+    path: '*',
+    element: <NotFound />,
   },
 ]); 
