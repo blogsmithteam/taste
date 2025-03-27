@@ -16,9 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Firebase configuration template
 - Basic component structure (Layout, Navigation)
 - Generic tasting notes functionality for food and beverages
+- Authentication system with Firebase Auth
+  - Login and registration forms
+  - Protected routes
+  - Authentication context for state management
+  - Loading states and error handling
 
 ### Changed
 - Updated project description to reflect generic tasting notes functionality
+- Restructured routing to include authentication flows
 
 ### Deprecated
 - None
@@ -30,4 +36,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - None
 
 ### Security
-- None 
+- Implemented secure authentication with Firebase Auth
+- Added protected routes for authenticated content 

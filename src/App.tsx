@@ -1,21 +1,13 @@
-import { Routes, Route } from 'react-router-dom'
-import Layout from './components/Layout'
-import Home from './pages/Home'
-import TastingNotes from './pages/TastingNotes'
-import Profile from './pages/Profile'
-import NotFound from './pages/NotFound'
+import { RouterProvider } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { router } from './routes';
 
 function App() {
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route index element={<Home />} />
-        <Route path="tasting-notes" element={<TastingNotes />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="*" element={<NotFound />} />
-      </Route>
-    </Routes>
-  )
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  );
 }
 
-export default App 
+export default App; 

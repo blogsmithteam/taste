@@ -14,6 +14,16 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
+// Debug logging
+console.log('Firebase Config:', {
+  apiKey: firebaseConfig.apiKey ? 'present' : 'missing',
+  authDomain: firebaseConfig.authDomain ? 'present' : 'missing',
+  projectId: firebaseConfig.projectId ? 'present' : 'missing',
+  storageBucket: firebaseConfig.storageBucket ? 'present' : 'missing',
+  messagingSenderId: firebaseConfig.messagingSenderId ? 'present' : 'missing',
+  appId: firebaseConfig.appId ? 'present' : 'missing',
+});
+
 // Initialize Firebase
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
