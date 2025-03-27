@@ -4,6 +4,8 @@ import { RegisterForm } from '../components/auth/RegisterForm';
 import { ResetPasswordForm } from '../components/auth/ResetPasswordForm';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { Dashboard } from '../pages/Dashboard';
+import CreateNote from '../pages/CreateNote';
+import { TastingNotes } from '../pages/TastingNotes';
 
 export const router = createBrowserRouter([
   {
@@ -27,6 +29,22 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <Dashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/create-note',
+    element: (
+      <ProtectedRoute>
+        <CreateNote />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/tasting-notes',
+    element: (
+      <ProtectedRoute>
+        <TastingNotes />
       </ProtectedRoute>
     ),
   },

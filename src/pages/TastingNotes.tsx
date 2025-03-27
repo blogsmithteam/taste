@@ -1,6 +1,6 @@
 import React from 'react';
 
-const TastingNotes: React.FC = () => {
+export const TastingNotes: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold mb-6">Tasting Notes</h1>
@@ -10,6 +10,4 @@ const TastingNotes: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default TastingNotes; 
+}; 

@@ -16,9 +16,20 @@ This guide provides detailed instructions for setting up and using the Taste app
 
 2. **Firebase Setup**
    - Create a new Firebase project at [firebase.google.com](https://firebase.google.com)
-   - Enable Authentication and Firestore
+   - Enable Authentication with Email/Password provider
+   - Enable Firestore Database
+   - Enable Storage for user uploads
    - Get your Firebase configuration from Project Settings
-   - Add the configuration to your `.env` file
+   - Add the configuration to your `.env` file:
+     ```
+     VITE_FIREBASE_API_KEY=your_api_key
+     VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+     VITE_FIREBASE_PROJECT_ID=your_project_id
+     VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+     VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+     VITE_FIREBASE_APP_ID=your_app_id
+     VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+     ```
 
 3. **Project Setup**
    ```bash
@@ -32,6 +43,39 @@ This guide provides detailed instructions for setting up and using the Taste app
    # Start development server
    npm run dev
    ```
+
+## Authentication System
+
+The application uses Firebase Authentication with the following features:
+
+1. **User Registration**
+   - Email and password registration
+   - Display name required
+   - Terms and Privacy Policy acceptance
+   - Password strength validation
+   - Email format validation
+
+2. **User Login**
+   - Email and password authentication
+   - Remember me functionality
+   - Redirect to protected routes
+   - State preservation during navigation
+
+3. **Password Reset**
+   - Email-based password reset
+   - Secure reset link generation
+   - Rate limiting for reset attempts
+
+4. **Protected Routes**
+   - Automatic redirection to login
+   - State preservation
+   - Role-based access control
+
+5. **Security Features**
+   - Rate limiting for authentication attempts
+   - Input validation and sanitization
+   - Secure session management
+   - Protected API endpoints
 
 ### Common Issues and Solutions
 
@@ -54,6 +98,13 @@ This guide provides detailed instructions for setting up and using the Taste app
    - Verify Firebase configuration in `.env`
    - Check Firebase console for any service issues
    - Ensure proper Firebase security rules are set
+   - Verify Authentication providers are enabled
+
+5. **Authentication Issues**
+   - Check Firebase Authentication console
+   - Verify email verification status
+   - Check rate limiting status
+   - Ensure proper error handling in forms
 
 ## Development Workflow
 
@@ -104,6 +155,12 @@ This guide provides detailed instructions for setting up and using the Taste app
    - Test user interactions
    - Maintain good test coverage
 
+5. **Authentication**
+   - Always validate user input
+   - Implement proper error handling
+   - Use secure session management
+   - Follow Firebase security best practices
+
 ## Deployment
 
 1. **Production Build**
@@ -126,4 +183,5 @@ This guide provides detailed instructions for setting up and using the Taste app
 - [React Documentation](https://react.dev)
 - [TypeScript Documentation](https://www.typescriptlang.org/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-- [Firebase Documentation](https://firebase.google.com/docs) 
+- [Firebase Documentation](https://firebase.google.com/docs)
+- [Firebase Authentication Documentation](https://firebase.google.com/docs/auth) 

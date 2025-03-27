@@ -49,5 +49,35 @@ service cloud.firestore {
       allow update: if isOwner(resource.data.userId);
       allow delete: if isOwner(resource.data.userId);
     }
+
+    // Restaurants collection with nested menuItems
+    match /restaurants/{restaurantId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        request.resource.data.name is string && 
+        request.resource.data.name.size() > 0;
+      allow update: if isAuthenticated();
+      allow delete: if false; // No deletion allowed
+
+      // Menu items subcollection
+      match /menuItems/{menuItemId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && 
+          request.resource.data.name is string && 
+          request.resource.data.name.size() > 0;
+        allow update: if isAuthenticated();
+        allow delete: if false; // No deletion allowed
+      }
+    }
+
+    // Recipe creators collection
+    match /recipeCreators/{creatorId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        request.resource.data.name is string && 
+        request.resource.data.name.size() > 0;
+      allow update: if isAuthenticated();
+      allow delete: if false; // No deletion allowed
+    }
   }
 }
