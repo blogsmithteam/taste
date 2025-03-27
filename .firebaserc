@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "taste-6fd78"
+  },
+  "targets": {
+    "taste-6fd78": {
+      "storage": {
+        "taste-6fd78.appspot.com": [
+          "storage"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

@@ -1,0 +1,137 @@
+1. General Guidelines
+Focus: Provide the simplest and most effective solution without unnecessary complexity.
+
+Explain Risks: Cursor should clearly warn about potential issues before suggesting changes.
+
+Warn About Dependencies: If a change impacts other files, Cursor should highlight dependencies and risks.
+
+2. Code Suggestions
+Avoid:
+- Deprecated methods
+- Hallucinated version numbers
+- Complex state management when simpler solutions suffice
+- Over-engineering of features
+
+Version Control:
+- Validate version numbers before suggesting them
+- Source versions from official documentation (e.g., npm, MDN, framework docs)
+- Use semantic versioning for all dependencies
+
+Enforce Best Practices:
+- Follow React and TypeScript best practices
+- Implement proper error boundaries
+- Use proper type definitions
+- Follow accessibility guidelines (WCAG 2.1)
+
+Prioritize Technologies:
+✅ React 18+ with TypeScript
+✅ Tailwind CSS (preferred over Material-UI for flexibility)
+✅ Firebase (Auth, Firestore, Storage)
+✅ React Router v6
+✅ Context API (preferred over Redux unless complexity demands it)
+
+3. File Changes & Scope Control
+Limit Scope:
+- Changes should be limited to the requested file unless explicitly approved
+- Document all file dependencies in comments
+- Keep components focused and single-responsibility
+
+Require Explicit Approval:
+- Cursor should not modify related files unless confirmed
+- Database schema changes require explicit approval
+- Security rule changes require explicit approval
+
+Warn About Cascading Effects:
+- If a change could break dependencies, explain potential risks
+- Highlight performance implications of changes
+- Note any security implications
+
+4. Logging & Documentation
+Changelog (CHANGELOG.md):
+Enabled: ✅ Yes
+Purpose: 
+- Tracks new features and significant changes
+- Documents breaking changes
+- Lists security updates
+
+How-To Guide (HOWTO.md):
+Enabled: ✅ Yes
+Purpose:
+- Documents AI-generated features
+- Provides setup instructions
+- Lists common troubleshooting steps
+
+5. Security & Risk Awareness
+🔍 General Security Best Practices
+- Follow Firebase security best practices
+- Implement proper authentication flows
+- Use environment variables for sensitive data
+- Validate all user input
+- Sanitize data before display
+- Implement proper CORS policies
+- Use secure session management
+
+🔒 Data Protection
+When handling user data:
+✅ Secure authentication with Firebase Auth
+✅ Implement proper Firestore security rules
+✅ Encrypt sensitive data at rest
+✅ Use secure file upload validation
+✅ Implement rate limiting
+✅ Regular security audits
+
+When handling user-generated content:
+✅ Sanitize HTML input
+✅ Validate file uploads
+✅ Implement proper access controls
+✅ Use parameterized queries
+✅ Apply content moderation
+
+🛠 Risk Assessment
+Before applying changes:
+- Assess impact on existing code
+- Identify security risks
+- Consider performance implications
+- Evaluate accessibility impact
+
+Risk Levels:
+🟢 Low: No security risk, minimal impact
+🟡 Medium: Possible risks, review recommended
+🔴 High: Significant security concern, manual review required
+
+6. Project-Specific Rules
+Tasting Notes App Requirements:
+- Maintain consistent data structure with defined interfaces
+- Implement proper error handling for offline scenarios
+- Ensure responsive design for all components
+- Follow mobile-first approach
+- Implement proper image optimization
+- Use proper caching strategies
+- Maintain consistent naming conventions
+- Document all API endpoints
+- Include proper TypeScript types
+- Follow React component best practices
+
+7. Performance Guidelines
+- Optimize bundle size
+- Implement proper code splitting
+- Use proper caching strategies
+- Optimize images and assets
+- Monitor performance metrics
+- Implement proper loading states
+- Use proper error boundaries
+- Optimize database queries
+- Implement proper pagination
+- Use proper lazy loading
+
+8. Testing Requirements
+- Write unit tests for critical components
+- Implement integration tests
+- Use proper test coverage
+- Follow testing best practices
+- Document test cases
+- Implement proper mocking
+- Use proper test utilities
+- Follow proper test naming conventions
+- Implement proper test isolation
+- Use proper test data management

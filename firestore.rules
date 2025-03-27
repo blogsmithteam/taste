@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isFriend(userId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId));
+    }
+    
+    function isPublic() {
+      return resource.data.visibility == 'public';
+    }
+    
+    function isFriendsOnly() {
+      return resource.data.visibility == 'friends';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isPublic());
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+      
+      // Following subcollection
+      match /following/{followedId} {
+        allow read: if isAuthenticated();
+        allow write: if isOwner(userId);
+      }
+    }
+
+    // Notes collection
+    match /notes/{noteId} {
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) || 
+        isPublic() || 
+        (isFriendsOnly() && isFriend(resource.data.userId))
+      );
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+  }
+}
