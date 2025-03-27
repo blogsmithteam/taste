@@ -1,26 +1,21 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { FormInput } from './shared/FormInput';
 import { Button } from './shared/Button';
 
-interface LoginFormData {
+interface ResetPasswordFormData {
   email: string;
-  password: string;
 }
 
 interface FormErrors {
   email?: string;
-  password?: string;
 }
 
-export const LoginForm: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { signIn } = useAuth();
-  const [formData, setFormData] = useState<LoginFormData>({
+export const ResetPasswordForm: React.FC = () => {
+  const { resetPassword } = useAuth();
+  const [formData, setFormData] = useState<ResetPasswordFormData>({
     email: '',
-    password: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -34,12 +29,6 @@ export const LoginForm: React.FC = () => {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
-    }
-
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
     }
 
     setErrors(newErrors);
@@ -66,14 +55,8 @@ export const LoginForm: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await signIn(formData.email, formData.password);
-      setSuccessMessage('Login successful!');
-      // Get the redirect path from location state or default to dashboard
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
-      // Wait a moment to show the success message before redirecting
-      setTimeout(() => {
-        navigate(from, { replace: true });
-      }, 1500);
+      await resetPassword(formData.email);
+      setSuccessMessage('Password reset email sent! Please check your inbox.');
     } catch (error) {
       setSubmitError((error as Error).message);
     } finally {
@@ -85,15 +68,15 @@ export const LoginForm: React.FC = () => {
     <div className="min-h-full flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Sign in to your account
+          Reset your password
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Or{' '}
           <Link
-            to="/register"
+            to="/login"
             className="font-medium text-indigo-600 hover:text-indigo-500"
           >
-            create a new account
+            return to login
           </Link>
         </p>
       </div>
@@ -137,36 +120,12 @@ export const LoginForm: React.FC = () => {
               error={errors.email}
             />
 
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <Link
-                  to="/reset-password"
-                  className="font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                  Forgot your password?
-                </Link>
-              </div>
-            </div>
-
-            <FormInput
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              label="Password"
-              value={formData.password}
-              onChange={handleChange}
-              error={errors.password}
-            />
-
             <Button
               type="submit"
               fullWidth
-              isLoading={isLoading}
               disabled={isLoading}
             >
-              Sign in
+              {isLoading ? 'Sending...' : 'Send Reset Link'}
             </Button>
           </form>
         </div>
