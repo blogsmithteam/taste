@@ -4,12 +4,26 @@
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:react-hooks/recommended"
+    "plugin:react-hooks/recommended",
+    "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
+    "prettier"
   ],
   "ignorePatterns": ["dist", ".eslintrc.json"],
   "parser": "@typescript-eslint/parser",
-  "plugins": ["react-refresh"],
+  "plugins": ["react-refresh", "react", "prettier"],
   "rules": {
-    "react-refresh/only-export-components": "warn"
+    "react-refresh/only-export-components": "warn",
+    "prettier/prettier": "error",
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/no-explicit-any": "warn"
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
   }
 } 

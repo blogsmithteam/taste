@@ -1,13 +1,18 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
+import Home from './pages/Home'
+import TastingNotes from './pages/TastingNotes'
+import Profile from './pages/Profile'
+import NotFound from './pages/NotFound'
 
 function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<div>Home Page</div>} />
-        <Route path="/tasting-notes" element={<div>Tasting Notes</div>} />
-        <Route path="/profile" element={<div>Profile</div>} />
+        <Route index element={<Home />} />
+        <Route path="tasting-notes" element={<TastingNotes />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   )
