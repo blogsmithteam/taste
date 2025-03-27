@@ -48,4 +48,12 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+  {
+    path: '/notes/:noteId',
+    element: (
+      <ProtectedRoute>
+        <TastingNotes />
+      </ProtectedRoute>
+    ),
+  },
 ]); 

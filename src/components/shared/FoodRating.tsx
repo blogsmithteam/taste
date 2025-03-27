@@ -1,43 +1,66 @@
 import React from 'react';
+import { StarIcon } from '@heroicons/react/24/solid';
+import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
 
-interface FoodRatingProps {
+export interface FoodRatingProps {
   value: number;
-  onChange: (value: number) => void;
+  onChange?: (value: number) => void;
   error?: string;
+  readonly?: boolean;
+  allowClear?: boolean;
+  size?: 'sm' | 'md' | 'lg';
 }
 
-const RATING_EMOJIS = [
-  { value: 1, emoji: '🤢', label: 'Not good' },
-  { value: 2, emoji: '😕', label: 'Meh' },
-  { value: 3, emoji: '😋', label: 'Good' },
-  { value: 4, emoji: '🤤', label: 'Very good' },
-  { value: 5, emoji: '🤯', label: 'Amazing' },
-];
+export const FoodRating: React.FC<FoodRatingProps> = ({
+  value,
+  onChange,
+  error,
+  readonly = false,
+  allowClear = false,
+  size = 'md'
+}) => {
+  const handleClick = (rating: number) => {
+    if (readonly) return;
+    if (allowClear && rating === value) {
+      onChange?.(0);
+    } else {
+      onChange?.(rating);
+    }
+  };
 
-export const FoodRating: React.FC<FoodRatingProps> = ({ value, onChange, error }) => {
+  const getStarSize = () => {
+    switch (size) {
+      case 'sm':
+        return 'h-4 w-4';
+      case 'lg':
+        return 'h-8 w-8';
+      default:
+        return 'h-6 w-6';
+    }
+  };
+
+  const starSize = getStarSize();
+
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">
-        Rating
-      </label>
-      <div className="flex items-center space-x-2">
-        {RATING_EMOJIS.map(({ value: ratingValue, emoji, label }) => (
+    <div>
+      <div className="flex items-center space-x-1">
+        {[1, 2, 3, 4, 5].map((rating) => (
           <button
-            key={ratingValue}
+            key={rating}
             type="button"
-            onClick={() => onChange(ratingValue)}
-            className={`text-2xl transition-transform hover:scale-110 focus:outline-none ${
-              value >= ratingValue ? 'opacity-100' : 'opacity-40'
-            }`}
-            aria-label={`Rate ${ratingValue} out of 5: ${label}`}
+            onClick={() => handleClick(rating)}
+            className={`${readonly ? 'cursor-default' : 'cursor-pointer'}`}
+            disabled={readonly}
           >
-            {emoji}
+            {rating <= value ? (
+              <StarIcon className={`${starSize} text-yellow-400`} />
+            ) : (
+              <StarOutlineIcon className={`${starSize} text-gray-300`} />
+            )}
           </button>
         ))}
       </div>
-      {error && (
-        <p className="mt-2 text-sm text-red-600">{error}</p>
-      )}
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
 }; 
