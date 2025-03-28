@@ -34,7 +34,11 @@ service cloud.firestore {
     function isValidPartialUpdate(data) {
       let hasValidUsername = !('username' in data) || (data.username is string && data.username.size() >= 3);
       let hasValidBio = !('bio' in data) || (data.bio is string && data.bio.size() <= 500);
-      let hasValidPreferences = !('dietaryPreferences' in data) || data.dietaryPreferences is list;
+      let hasValidPreferences = !('dietaryPreferences' in data) || (
+        data.dietaryPreferences is list &&
+        data.dietaryPreferences.size() <= 12 &&  // Maximum number of preferences
+        data.dietaryPreferences.hasAll([]) // Remove the strict validation temporarily
+      );
       let hasValidAllergies = !('allergies' in data) || data.allergies is list;
       let hasValidSettings = !('settings' in data) || (
         data.settings is map &&

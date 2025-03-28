@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { userService } from '../../services/user';
 import { ProfileFormData, DIETARY_PREFERENCES_OPTIONS, DEFAULT_USER_SETTINGS } from '../../types/user';
+import { DietaryPreferences } from './DietaryPreferences';
 
 interface ProfileFormProps {
   initialData?: Partial<ProfileFormData>;
@@ -98,6 +99,16 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
       newErrors.bio = 'Bio must be less than 500 characters';
     }
 
+    // Validate dietary preferences
+    if (formData.dietaryPreferences.length > 0) {
+      const invalidPreferences = formData.dietaryPreferences.filter(
+        pref => !DIETARY_PREFERENCES_OPTIONS.includes(pref)
+      );
+      if (invalidPreferences.length > 0) {
+        newErrors.dietaryPreferences = 'Some dietary preferences are invalid';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -170,25 +181,11 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
 
       {/* Dietary Preferences */}
       <div>
-        <label className="block text-sm font-medium text-gray-700">
-          Dietary Preferences
-        </label>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {DIETARY_PREFERENCES_OPTIONS.map(preference => (
-            <button
-              key={preference}
-              type="button"
-              onClick={() => handlePreferenceToggle(preference)}
-              className={`rounded-full px-3 py-1 text-sm font-medium ${
-                formData.dietaryPreferences.includes(preference)
-                  ? 'bg-indigo-100 text-indigo-800'
-                  : 'bg-gray-100 text-gray-800'
-              } hover:bg-indigo-200`}
-            >
-              {preference}
-            </button>
-          ))}
-        </div>
+        <DietaryPreferences
+          selectedPreferences={formData.dietaryPreferences}
+          onChange={(preferences) => setFormData(prev => ({ ...prev, dietaryPreferences: preferences }))}
+          error={errors.dietaryPreferences}
+        />
       </div>
 
       {/* Allergies */}
