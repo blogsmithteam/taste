@@ -105,7 +105,7 @@ export const RegisterForm: React.FC = () => {
       setSuccessMessage('Account created successfully!');
       // Wait a moment to show the success message before redirecting
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate('/app');
       }, 1500);
     } catch (error) {
       setSubmitError((error as Error).message);

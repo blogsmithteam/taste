@@ -3,12 +3,13 @@ import { LoginForm } from '../components/auth/LoginForm';
 import { RegisterForm } from '../components/auth/RegisterForm';
 import { ResetPasswordForm } from '../components/auth/ResetPasswordForm';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
-import { Dashboard } from '../pages/Dashboard';
 import CreateNote from '../pages/CreateNote';
 import { TastingNotes } from '../pages/TastingNotes';
 import NotePage from '../pages/NotePage';
 import EditNote from '../pages/EditNote';
 import NotFound from '../pages/NotFound';
+import Profile from '../pages/Profile';
+import Layout from '../components/Layout';
 
 export const router = createBrowserRouter([
   {
@@ -28,44 +29,38 @@ export const router = createBrowserRouter([
     element: <ResetPasswordForm />,
   },
   {
-    path: '/dashboard',
+    path: '/app',
     element: (
       <ProtectedRoute>
-        <Dashboard />
+        <Layout />
       </ProtectedRoute>
     ),
-  },
-  {
-    path: '/create-note',
-    element: (
-      <ProtectedRoute>
-        <CreateNote />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/tasting-notes',
-    element: (
-      <ProtectedRoute>
-        <TastingNotes />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/notes/:id',
-    element: (
-      <ProtectedRoute>
-        <NotePage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/notes/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <EditNote />
-      </ProtectedRoute>
-    ),
+    children: [
+      {
+        path: '',
+        element: <TastingNotes />
+      },
+      {
+        path: 'tasting-notes',
+        element: <TastingNotes />
+      },
+      {
+        path: 'create-note',
+        element: <CreateNote />
+      },
+      {
+        path: 'notes/:id',
+        element: <NotePage />
+      },
+      {
+        path: 'notes/:id/edit',
+        element: <EditNote />
+      },
+      {
+        path: 'profile',
+        element: <Profile />
+      }
+    ]
   },
   {
     path: '*',

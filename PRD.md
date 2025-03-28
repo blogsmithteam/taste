@@ -116,8 +116,8 @@ interface Note {
   - [x] Create note form with visibility options
   - [x] Note list view with filtering
   - [x] Individual note view
-  - [ ] Edit/Delete functionality
-  - [ ] Photo upload integration
+  - [x] Edit/Delete functionality
+  - [x] Photo upload integration
   - [ ] Data export functionality
 
 - [ ] User Profiles
@@ -191,6 +191,39 @@ interface Note {
   - Success/error messages for CRUD operations
   - Authentication status updates
   - Real-time updates for social features
+
+### Future Image Upload Enhancements
+- Enhanced Loading States & Error Handling
+  - Add loading skeletons for image components
+  - Implement error boundaries around image components
+  - Add retry mechanisms for failed uploads
+
+- Image Optimization Improvements
+  - Support for additional image formats
+  - Implement lazy loading for image galleries
+  - Add image placeholder/blur effect while loading
+  - Progressive image loading
+  - Optimize image grid layout to prevent CLS (Cumulative Layout Shift)
+
+- Enhanced Image Management
+  - Drag-and-drop reordering of photos within notes
+  - Add image captions and descriptions
+  - Fullscreen image viewer with zoom capabilities
+  - Batch upload support
+  - Image cropping and basic editing tools
+
+- Performance Optimizations
+  - Implement robust image caching strategy
+  - Progressive image loading
+  - Automatic image format conversion (e.g., WebP when supported)
+  - Smart preloading of images based on viewport
+
+- Accessibility Improvements
+  - Enhanced alt text management
+  - Keyboard navigation for image galleries
+  - ARIA labels and roles for all image-related components
+  - High contrast mode support
+  - Screen reader optimizations
 
 ## Documentation Requirements
 - API documentation

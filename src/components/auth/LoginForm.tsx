@@ -69,7 +69,7 @@ export const LoginForm: React.FC = () => {
       await signIn(formData.email, formData.password);
       setSuccessMessage('Login successful!');
       // Get the redirect path from location state or default to dashboard
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      const from = (location.state as any)?.from?.pathname || '/app';
       // Wait a moment to show the success message before redirecting
       setTimeout(() => {
         navigate(from, { replace: true });

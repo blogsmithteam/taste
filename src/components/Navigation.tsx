@@ -11,17 +11,16 @@ const Navigation = () => {
   };
 
   const navItems = [
-    { path: '/dashboard', label: 'Home', icon: HomeIcon },
-    { path: '/tasting-notes', label: 'Tasting Notes', icon: BookOpenIcon },
-    { path: '/create-note', label: 'Create Note', icon: PlusIcon },
-    { path: '/profile', label: 'Profile', icon: UserIcon },
+    { path: '/app/tasting-notes', label: 'Tasting Notes', icon: BookOpenIcon },
+    { path: '/app/create-note', label: 'Create Note', icon: PlusIcon },
+    { path: '/app/profile', label: 'Profile', icon: UserIcon },
   ];
 
   return (
     <nav className="bg-white shadow-sm" role="navigation" aria-label="Main navigation">
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="flex items-center justify-between h-16">
-          <Link to="/dashboard" className="text-xl font-bold text-gray-800 hover:text-blue-600 transition-colors">
+          <Link to="/app" className="text-xl font-bold text-gray-800 hover:text-blue-600 transition-colors">
             Taste
           </Link>
 

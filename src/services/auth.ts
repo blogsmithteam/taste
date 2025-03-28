@@ -9,12 +9,21 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { User, AuthError } from '../types/auth';
+import { userService } from './user';
 
 class AuthService {
   async signUp(email: string, password: string, displayName: string): Promise<User> {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await firebaseUpdateProfile(userCredential.user, { displayName });
+      
+      // Create user profile in Firestore
+      await userService.createUserProfile(
+        userCredential.user.uid,
+        email,
+        displayName
+      );
+
       return this.mapFirebaseUser(userCredential.user);
     } catch (error) {
       throw this.handleAuthError(error as FirebaseAuthError);

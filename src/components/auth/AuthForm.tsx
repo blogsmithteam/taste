@@ -21,9 +21,9 @@ export function AuthForm({ mode }: AuthFormProps) {
       if (mode === 'login') {
         await signIn(email, password);
       } else {
-        await signUp(email, password);
+        await signUp(email, password, email.split('@')[0]);
       }
-      navigate('/dashboard');
+      navigate('/app');
     } catch (err) {
       // Error is handled by the AuthContext
       console.error(err);

@@ -24,17 +24,61 @@ service cloud.firestore {
       return resource.data.visibility == 'friends';
     }
 
+    function isValidUserData(data) {
+      return data.username is string &&
+        data.username.size() >= 3 &&
+        data.email is string &&
+        data.email.matches('^[^@]+@[^@]+\\.[^@]+$');
+    }
+
+    function isValidPartialUpdate(data) {
+      let hasValidUsername = !('username' in data) || (data.username is string && data.username.size() >= 3);
+      let hasValidBio = !('bio' in data) || (data.bio is string && data.bio.size() <= 500);
+      let hasValidPreferences = !('dietaryPreferences' in data) || data.dietaryPreferences is list;
+      let hasValidAllergies = !('allergies' in data) || data.allergies is list;
+      let hasValidSettings = !('settings' in data) || (
+        data.settings is map &&
+        (!('isPrivate' in data.settings) || data.settings.isPrivate is bool) &&
+        (!('emailNotifications' in data.settings) || data.settings.emailNotifications is bool) &&
+        (!('language' in data.settings) || data.settings.language == 'en')
+      );
+      
+      return hasValidUsername && 
+        hasValidBio && 
+        hasValidPreferences && 
+        hasValidAllergies && 
+        hasValidSettings;
+    }
+
     // Users collection
     match /users/{userId} {
-      allow read: if isAuthenticated() && (isOwner(userId) || isPublic());
-      allow create: if isAuthenticated() && isOwner(userId);
-      allow update: if isOwner(userId);
+      allow read: if isAuthenticated() && (
+        isOwner(userId) || 
+        (!resource.data.settings.isPrivate && (
+          isPublic() || 
+          (isFriendsOnly() && isFriend(userId))
+        ))
+      );
+      
+      allow create: if isAuthenticated() && 
+        isOwner(userId) && 
+        isValidUserData(request.resource.data);
+      
+      allow update: if isOwner(userId) && 
+        isValidPartialUpdate(request.resource.data);
+      
       allow delete: if isOwner(userId);
       
       // Following subcollection
       match /following/{followedId} {
         allow read: if isAuthenticated();
         allow write: if isOwner(userId);
+      }
+
+      // Followers subcollection
+      match /followers/{followerId} {
+        allow read: if isAuthenticated();
+        allow write: if isOwner(followerId);
       }
     }
 
