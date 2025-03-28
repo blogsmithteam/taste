@@ -61,7 +61,7 @@ const NotePage: React.FC = () => {
     try {
       setIsDeleting(true);
       await notesService.deleteNote(user.uid, note.id);
-      navigate('/tasting-notes', { replace: true });
+      navigate('/app/tasting-notes', { replace: true });
     } catch (err) {
       console.error('Error deleting note:', err);
       setError('Failed to delete note. Please try again.');

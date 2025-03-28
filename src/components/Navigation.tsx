@@ -1,13 +1,25 @@
-import { Link, useLocation } from 'react-router-dom';
-import { HomeIcon, BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { HomeIcon, BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Navigation = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => {
     return location.pathname === path;
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+    }
   };
 
   const navItems = [
@@ -59,6 +71,13 @@ const Navigation = () => {
                 </Link>
               );
             })}
+            <button
+              onClick={handleSignOut}
+              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            >
+              <ArrowRightOnRectangleIcon className="h-5 w-5 mr-1" aria-hidden="true" />
+              Sign Out
+            </button>
           </div>
         </div>
 
@@ -84,6 +103,13 @@ const Navigation = () => {
                   </Link>
                 );
               })}
+              <button
+                onClick={handleSignOut}
+                className="flex w-full items-center px-3 py-2 text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+              >
+                <ArrowRightOnRectangleIcon className="h-5 w-5 mr-3" aria-hidden="true" />
+                Sign Out
+              </button>
             </div>
           </div>
         )}

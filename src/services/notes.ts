@@ -6,6 +6,7 @@ export interface Note {
   userId: string;
   type: 'restaurant' | 'recipe';
   title: string;
+  menuItemId?: string;
   rating: number;
   date: Timestamp;
   location?: {
@@ -30,6 +31,7 @@ export interface Note {
 export interface CreateNoteData {
   type: 'restaurant' | 'recipe';
   title: string;
+  menuItemId?: string;
   rating: number;
   date: string;
   location?: {
@@ -133,20 +135,31 @@ export const notesService = {
       })
     } : undefined;
 
-    const noteData = {
-      ...data,
-      location,
-      userId,
+    // Clean up the data by removing undefined values
+    const cleanData = {
+      type: data.type,
+      title: data.title,
+      ...(data.menuItemId && { menuItemId: data.menuItemId }), // Only include if defined
+      rating: data.rating,
       date: Timestamp.fromDate(new Date(data.date)),
+      ...(location && { location }), // Only include if defined
+      notes: data.notes,
+      tags: data.tags || [],
+      improvements: data.improvements || [],
+      wouldOrderAgain: data.wouldOrderAgain,
+      visibility: data.visibility,
+      photos: data.photos || [],
+      sharedWith: [], // Initialize empty array for new notes
+      userId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
     try {
-      const docRef = await addDoc(collection(db, 'notes'), noteData);
+      const docRef = await addDoc(collection(db, 'notes'), cleanData);
       return {
         id: docRef.id,
-        ...noteData,
+        ...cleanData,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       } as Note;
@@ -423,20 +436,32 @@ export const notesService = {
       throw new Error('You do not have permission to edit this note');
     }
 
-    const noteData = {
-      ...data,
-      location,
-      userId,
+    // Clean up the data by removing undefined values
+    const cleanData = {
+      type: data.type,
+      title: data.title,
+      ...(data.menuItemId && { menuItemId: data.menuItemId }), // Only include if defined
+      rating: data.rating,
       date: Timestamp.fromDate(new Date(data.date)),
+      ...(location && { location }), // Only include if defined
+      notes: data.notes,
+      tags: data.tags || [],
+      improvements: data.improvements || [],
+      wouldOrderAgain: data.wouldOrderAgain,
+      visibility: data.visibility,
+      photos: data.photos || [],
+      userId,
       updatedAt: serverTimestamp(),
     };
 
     try {
-      await updateDoc(noteRef, noteData);
+      await updateDoc(noteRef, cleanData);
       return {
-        ...noteData,
+        ...cleanData,
+        id: data.id,
         createdAt: existingNote.createdAt,
         updatedAt: Timestamp.now(),
+        sharedWith: existingNote.sharedWith,
       } as Note;
     } catch (error) {
       console.error('Error updating note in Firestore:', error);

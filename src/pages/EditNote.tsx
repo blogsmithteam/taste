@@ -54,7 +54,7 @@ const EditNote: React.FC = () => {
   }, [id, user]);
 
   const handleSuccess = (updatedNote: Note) => {
-    navigate(`/notes/${updatedNote.id}`);
+    navigate(`/app/notes/${updatedNote.id}`);
   };
 
   if (loading) {
@@ -70,7 +70,7 @@ const EditNote: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-screen">
         <div className="text-red-600 text-xl mb-4">{error}</div>
         <button
-          onClick={() => navigate('/notes')}
+          onClick={() => navigate('/app/tasting-notes')}
           className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
         >
           Back to Notes
@@ -88,7 +88,7 @@ const EditNote: React.FC = () => {
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <button
-            onClick={() => navigate(`/notes/${note.id}`)}
+            onClick={() => navigate(`/app/notes/${note.id}`)}
             className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
           >
             <svg

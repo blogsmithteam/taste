@@ -164,6 +164,8 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
         address: restaurant.address || '',
         coordinates: prev.location?.coordinates,
       },
+      title: '',  // Clear the menu item title
+      menuItemId: undefined  // Clear the menu item ID
     }));
   };
 
@@ -201,10 +203,11 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
         }));
       } catch (error) {
         console.error('Error adding menu item:', error);
-        // Still set the name but without an ID
+        // Still set the name but explicitly set menuItemId to undefined
         setFormData(prev => ({
           ...prev,
-          title: item.name
+          title: item.name,
+          menuItemId: undefined
         }));
       }
     }
@@ -353,7 +356,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
       if (onSuccess) {
         onSuccess(savedNote);
       } else {
-        navigate('/tasting-notes');
+        navigate('/app/tasting-notes');
       }
     } catch (error) {
       console.error('Unexpected error:', error);
