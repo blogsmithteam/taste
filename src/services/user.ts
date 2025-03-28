@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, FieldValue } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, FieldValue, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { UserProfile, ProfileFormData, DEFAULT_USER_SETTINGS } from '../types/user';
 
@@ -52,6 +52,115 @@ class UserService {
       ...data,
       updatedAt: serverTimestamp()
     });
+  }
+
+  async followUser(currentUserId: string, targetUserId: string): Promise<void> {
+    if (currentUserId === targetUserId) {
+      throw new Error('Cannot follow yourself');
+    }
+
+    const currentUserRef = doc(db, 'users', currentUserId);
+    const targetUserRef = doc(db, 'users', targetUserId);
+
+    // Check if target user exists
+    const targetUserDoc = await getDoc(targetUserRef);
+    if (!targetUserDoc.exists()) {
+      throw new Error('User not found');
+    }
+
+    // Check if already following
+    const currentUserDoc = await getDoc(currentUserRef);
+    if (!currentUserDoc.exists()) {
+      throw new Error('Current user not found');
+    }
+
+    const userData = currentUserDoc.data() as UserProfile;
+    if (userData.following.includes(targetUserId)) {
+      throw new Error('Already following this user');
+    }
+
+    // Update current user's following list
+    await updateDoc(currentUserRef, {
+      following: arrayUnion(targetUserId),
+      updatedAt: serverTimestamp()
+    });
+
+    // Update target user's followers list
+    await updateDoc(targetUserRef, {
+      followers: arrayUnion(currentUserId),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async unfollowUser(currentUserId: string, targetUserId: string): Promise<void> {
+    const currentUserRef = doc(db, 'users', currentUserId);
+    const targetUserRef = doc(db, 'users', targetUserId);
+
+    // Check if target user exists
+    const targetUserDoc = await getDoc(targetUserRef);
+    if (!targetUserDoc.exists()) {
+      throw new Error('User not found');
+    }
+
+    // Check if actually following
+    const currentUserDoc = await getDoc(currentUserRef);
+    if (!currentUserDoc.exists()) {
+      throw new Error('Current user not found');
+    }
+
+    const userData = currentUserDoc.data() as UserProfile;
+    if (!userData.following.includes(targetUserId)) {
+      throw new Error('Not following this user');
+    }
+
+    // Update current user's following list
+    await updateDoc(currentUserRef, {
+      following: arrayRemove(targetUserId),
+      updatedAt: serverTimestamp()
+    });
+
+    // Update target user's followers list
+    await updateDoc(targetUserRef, {
+      followers: arrayRemove(currentUserId),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async isFollowing(currentUserId: string, targetUserId: string): Promise<boolean> {
+    const currentUserDoc = await getDoc(doc(db, 'users', currentUserId));
+    if (!currentUserDoc.exists()) {
+      return false;
+    }
+
+    const userData = currentUserDoc.data() as UserProfile;
+    return userData.following.includes(targetUserId);
+  }
+
+  async createTestUser(uid: string): Promise<void> {
+    const userRef = doc(db, 'users', uid);
+    const timestamp = serverTimestamp();
+    const testUser: Omit<UserProfile, 'createdAt' | 'updatedAt'> & {
+      createdAt: FieldValue;
+      updatedAt: FieldValue;
+    } = {
+      uid,
+      username: 'Test User',
+      email: 'test@example.com',
+      profilePicture: '',
+      bio: 'This is a test user',
+      dietaryPreferences: ['Vegetarian'],
+      allergies: [],
+      followers: [],
+      following: [],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      settings: {
+        ...DEFAULT_USER_SETTINGS,
+        isPrivate: false
+      }
+    };
+
+    await setDoc(userRef, testUser);
   }
 }
 

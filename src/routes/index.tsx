@@ -10,6 +10,15 @@ import EditNote from '../pages/EditNote';
 import NotFound from '../pages/NotFound';
 import Profile from '../pages/Profile';
 import Layout from '../components/Layout';
+import DiscoverUsers from '../pages/DiscoverUsers';
+import { UserProfileView } from '../components/profile/UserProfileView';
+import { useParams } from 'react-router-dom';
+
+// Wrapper component to pass userId from URL params
+const UserProfileViewWrapper = () => {
+  const { userId } = useParams<{ userId: string }>();
+  return userId ? <UserProfileView userId={userId} /> : null;
+};
 
 export const router = createBrowserRouter([
   {
@@ -59,6 +68,14 @@ export const router = createBrowserRouter([
       {
         path: 'profile',
         element: <Profile />
+      },
+      {
+        path: 'discover',
+        element: <DiscoverUsers />
+      },
+      {
+        path: 'users/:userId',
+        element: <UserProfileViewWrapper />
       }
     ]
   },

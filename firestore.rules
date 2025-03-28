@@ -46,31 +46,79 @@ service cloud.firestore {
         (!('emailNotifications' in data.settings) || data.settings.emailNotifications is bool) &&
         (!('language' in data.settings) || data.settings.language == 'en')
       );
+      let hasValidFollowers = !('followers' in data) || (
+        data.followers is list &&
+        data.followers.size() <= 10000 // Reasonable limit for followers
+      );
+      let hasValidFollowing = !('following' in data) || (
+        data.following is list &&
+        data.following.size() <= 5000 // Reasonable limit for following
+      );
       
       return hasValidUsername && 
         hasValidBio && 
         hasValidPreferences && 
         hasValidAllergies && 
-        hasValidSettings;
+        hasValidSettings &&
+        hasValidFollowers &&
+        hasValidFollowing;
     }
 
     // Users collection
     match /users/{userId} {
+      // Allow read if:
+      // 1. The user is accessing their own profile
+      // 2. The profile is public
+      // 3. The user is a follower and the profile is friends-only
+      // 4. The user is authenticated and listing users (for discover page)
       allow read: if isAuthenticated() && (
         isOwner(userId) || 
-        (!resource.data.settings.isPrivate && (
-          isPublic() || 
-          (isFriendsOnly() && isFriend(userId))
-        ))
+        !resource.data.settings.isPrivate ||
+        (resource.data.settings.isPrivate && isFriend(userId)) ||
+        (request.query.limit <= 12 && // Limit to reasonable page size
+         (('settings.isPrivate' in request.query.orderBy && 'username' in request.query.orderBy) || // Allow compound queries
+          request.query.orderBy == 'username'))
       );
       
-      allow create: if isAuthenticated() && 
-        isOwner(userId) && 
-        isValidUserData(request.resource.data);
+      // Allow create if authenticated and data is valid
+      allow create: if isAuthenticated() && isValidUserData(request.resource.data);
       
-      allow update: if isOwner(userId) && 
-        isValidPartialUpdate(request.resource.data);
+      // Allow update if:
+      // 1. User is updating their own profile
+      // 2. The update is a follow/unfollow operation
+      allow update: if isAuthenticated() && (
+        // Allow users to update their own profile
+        (isOwner(userId) && isValidPartialUpdate(request.resource.data)) ||
+        // Allow follow/unfollow operations
+        (
+          // Only allow updating followers and updatedAt fields
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'updatedAt']) &&
+          (
+            // Adding to followers array
+            (request.resource.data.followers.size() == resource.data.followers.size() + 1 &&
+             request.resource.data.followers.removeAll(resource.data.followers).size() == 1 &&
+             request.resource.data.followers.removeAll(resource.data.followers)[0] == request.auth.uid) ||
+            // Removing from followers array
+            (request.resource.data.followers.size() == resource.data.followers.size() - 1 &&
+             resource.data.followers.removeAll(request.resource.data.followers).size() == 1 &&
+             resource.data.followers.removeAll(request.resource.data.followers)[0] == request.auth.uid)
+          )
+        ) ||
+        // Allow updating own following list
+        (isOwner(userId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following', 'updatedAt']) &&
+          (
+            // Adding to following array
+            (request.resource.data.following.size() == resource.data.following.size() + 1 &&
+             request.resource.data.following.removeAll(resource.data.following).size() == 1) ||
+            // Removing from following array
+            (request.resource.data.following.size() == resource.data.following.size() - 1 &&
+             resource.data.following.removeAll(request.resource.data.following).size() == 1)
+          )
+        )
+      );
       
+      // Allow delete if user is deleting their own profile
       allow delete: if isOwner(userId);
       
       // Following subcollection
