@@ -1,6 +1,8 @@
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, FieldValue, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { UserProfile, ProfileFormData, DEFAULT_USER_SETTINGS } from '../types/user';
+import { activityService } from './activity';
+import { User, IdTokenResult } from 'firebase/auth';
 
 class UserService {
   async createUserProfile(uid: string, email: string, username: string): Promise<void> {
@@ -55,41 +57,60 @@ class UserService {
   }
 
   async followUser(currentUserId: string, targetUserId: string): Promise<void> {
-    if (currentUserId === targetUserId) {
-      throw new Error('Cannot follow yourself');
-    }
-
     const currentUserRef = doc(db, 'users', currentUserId);
     const targetUserRef = doc(db, 'users', targetUserId);
+    const timestamp = serverTimestamp();
 
-    // Check if target user exists
-    const targetUserDoc = await getDoc(targetUserRef);
-    if (!targetUserDoc.exists()) {
-      throw new Error('User not found');
-    }
-
-    // Check if already following
+    // Get current user data for activity creation
     const currentUserDoc = await getDoc(currentUserRef);
     if (!currentUserDoc.exists()) {
       throw new Error('Current user not found');
     }
+    const currentUser = currentUserDoc.data() as UserProfile;
 
-    const userData = currentUserDoc.data() as UserProfile;
-    if (userData.following.includes(targetUserId)) {
-      throw new Error('Already following this user');
-    }
+    // Create a temporary User object for activity service
+    const tempUser: User = {
+      uid: currentUserId,
+      displayName: currentUser.username,
+      photoURL: currentUser.profilePicture || null,
+      email: currentUser.email,
+      emailVerified: true,
+      isAnonymous: false,
+      metadata: {},
+      providerData: [],
+      refreshToken: '',
+      tenantId: null,
+      phoneNumber: null,
+      providerId: 'firebase',
+      delete: async () => {},
+      getIdToken: async () => '',
+      getIdTokenResult: async () => ({
+        token: '',
+        signInProvider: null,
+        claims: {},
+        authTime: '',
+        issuedAtTime: '',
+        expirationTime: '',
+        signInSecondFactor: null
+      } as IdTokenResult),
+      reload: async () => {},
+      toJSON: () => ({})
+    };
 
-    // Update current user's following list
-    await updateDoc(currentUserRef, {
-      following: arrayUnion(targetUserId),
-      updatedAt: serverTimestamp()
-    });
-
-    // Update target user's followers list
-    await updateDoc(targetUserRef, {
-      followers: arrayUnion(currentUserId),
-      updatedAt: serverTimestamp()
-    });
+    await Promise.all([
+      updateDoc(currentUserRef, {
+        following: arrayUnion(targetUserId),
+        updatedAt: timestamp
+      }),
+      updateDoc(targetUserRef, {
+        followers: arrayUnion(currentUserId),
+        updatedAt: timestamp
+      }),
+      activityService.createActivity(tempUser, {
+        type: 'started_following',
+        targetId: targetUserId
+      })
+    ]);
   }
 
   async unfollowUser(currentUserId: string, targetUserId: string): Promise<void> {

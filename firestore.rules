@@ -181,5 +181,37 @@ service cloud.firestore {
       allow update: if isAuthenticated();
       allow delete: if false; // No deletion allowed
     }
+
+    // Activities collection
+    match /activities/{activityId} {
+      // Allow read if:
+      // 1. The user is authenticated
+      // 2. The activity is from a user they follow
+      allow read: if isAuthenticated() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following.hasAny([resource.data.userId])
+      );
+      
+      // Allow create if:
+      // 1. The user is authenticated
+      // 2. The data is valid
+      allow create: if isAuthenticated() && 
+        isValidActivityData(request.resource.data);
+    }
+
+    function isValidActivityData(data) {
+      let hasValidType = data.type in ['note_created', 'note_updated', 'started_following'];
+      let hasValidTimestamp = data.timestamp is timestamp;
+      let hasValidUserId = data.userId is string;
+      let hasValidTargetId = data.targetId is string;
+      let hasValidUsername = data.username is string;
+      
+      // Make title and profilePicture optional by removing them from validation
+      return hasValidType && 
+        hasValidTimestamp && 
+        hasValidUserId && 
+        hasValidTargetId && 
+        hasValidUsername;
+    }
   }
 }

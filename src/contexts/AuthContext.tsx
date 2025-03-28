@@ -1,126 +1,87 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { auth } from '../lib/firebase';
-import { authService } from '../services/auth';
-import { AuthContextType, AuthState, User, mapFirebaseUser } from '../types/auth';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, User } from 'firebase/auth';
+import { userService } from '../services/user';
+
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, username: string) => Promise<void>;
+  signOut: () => Promise<void>;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    loading: true,
-    error: null,
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const auth = getAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-      setState({
-        user: mapFirebaseUser(firebaseUser),
-        loading: false,
-        error: null,
-      });
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, []);
+    return unsubscribe;
+  }, [auth]);
 
   const signIn = async (email: string, password: string) => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      await authService.signIn(email, password);
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: (error as { message: string }).message,
-      }));
-      throw error;
-    } finally {
-      setState(prev => ({ ...prev, loading: false }));
+      setError(null);
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      console.error('Error signing in:', err);
+      setError('Failed to sign in');
+      throw err;
     }
   };
 
-  const signUp = async (email: string, password: string, displayName: string) => {
+  const signUp = async (email: string, password: string, username: string) => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      await authService.signUp(email, password, displayName);
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: (error as { message: string }).message,
-      }));
-      throw error;
-    } finally {
-      setState(prev => ({ ...prev, loading: false }));
+      setError(null);
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      await userService.createUserProfile(user.uid, email, username);
+    } catch (err) {
+      console.error('Error signing up:', err);
+      setError('Failed to create account');
+      throw err;
     }
   };
 
   const signOut = async () => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      await authService.signOut();
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: (error as { message: string }).message,
-      }));
-      throw error;
-    } finally {
-      setState(prev => ({ ...prev, loading: false }));
+      setError(null);
+      await firebaseSignOut(auth);
+    } catch (err) {
+      console.error('Error signing out:', err);
+      setError('Failed to sign out');
+      throw err;
     }
   };
 
-  const resetPassword = async (email: string) => {
-    try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      await authService.resetPassword(email);
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: (error as { message: string }).message,
-      }));
-      throw error;
-    } finally {
-      setState(prev => ({ ...prev, loading: false }));
-    }
-  };
-
-  const updateProfile = async (data: Partial<User>) => {
-    try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      await authService.updateProfile(data);
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: (error as { message: string }).message,
-      }));
-      throw error;
-    } finally {
-      setState(prev => ({ ...prev, loading: false }));
-    }
-  };
-
-  const value: AuthContextType = {
-    ...state,
+  const value = {
+    user,
+    loading,
+    error,
     signIn,
     signUp,
-    signOut,
-    resetPassword,
-    updateProfile,
+    signOut
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }; 

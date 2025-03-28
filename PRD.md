@@ -98,7 +98,7 @@ interface Note {
 ## Development Phases
 
 ### Phase 1: Foundation (Week 1)
-- [ ] Project Setup
+- [X] Project Setup
   - [x] Initialize React + TypeScript project
   - [x] Set up Firebase configuration
   - [x] Configure ESLint and Prettier
@@ -119,22 +119,26 @@ interface Note {
   - [x] Edit/Delete functionality
   - [x] Photo upload integration
   - [ ] Data export functionality
+  - [x] Profile picture functionality
 
-- [ ] User Profiles
-  - [ ] Profile creation/editing
-  - [ ] Dietary preferences
-  - [ ] Allergies management
-  - [ ] Privacy settings
+- [X] User Profiles
+  - [X] Profile creation/editing
+  - [X] Dietary preferences
+  - [X] Allergies management
+  - [X] Privacy settings
+  - [X] Admin functionality for user management
 
 ### Phase 3: Social Features (Weeks 4-5)
-- [ ] Social Interactions
-  - [ ] Follow/unfollow system
-  - [ ] Note sharing
+- [X] Social Interactions
+  - [X] Follow/unfollow system
+  - [X] Note sharing with specific users
+  - [X] Friend selector for note sharing
   - [ ] Activity feed
   - [ ] Notifications
 
 - [ ] Search & Discovery
-  - [ ] Search functionality
+  - [X] Basic user discovery
+  - [ ] Advanced search functionality
   - [ ] Filter system
   - [ ] Tag system
 
@@ -242,6 +246,9 @@ interface Note {
   - Dietary preferences
   - Allergies and restrictions
   - Privacy settings
+- Admin functionality:
+  - User management (view, delete)
+  - Access control based on admin email
 
 ### Tasting Notes
 - Create notes for:

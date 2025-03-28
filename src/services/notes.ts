@@ -1,5 +1,7 @@
 import { collection, addDoc, Timestamp, serverTimestamp, query, where, getDocs, orderBy, limit, startAfter, QueryConstraint, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { User } from 'firebase/auth';
+import { activityService } from './activity';
 
 export interface Note {
   id: string;
@@ -157,12 +159,57 @@ export const notesService = {
 
     try {
       const docRef = await addDoc(collection(db, 'notes'), cleanData);
-      return {
+      const newNote = {
         id: docRef.id,
         ...cleanData,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       } as Note;
+
+      // Get user data for activity creation
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+      const userData = userDoc.data();
+
+      // Create a temporary User object for activity service
+      const tempUser: User = {
+        uid: userId,
+        displayName: userData.username,
+        photoURL: userData.profilePicture || null,
+        email: userData.email,
+        emailVerified: true,
+        isAnonymous: false,
+        metadata: {},
+        providerData: [],
+        refreshToken: '',
+        tenantId: null,
+        phoneNumber: null,
+        providerId: 'firebase',
+        delete: async () => {},
+        getIdToken: async () => '',
+        getIdTokenResult: async () => ({
+          token: '',
+          signInProvider: null,
+          claims: {},
+          authTime: '',
+          issuedAtTime: '',
+          expirationTime: '',
+          signInSecondFactor: null
+        }),
+        reload: async () => {},
+        toJSON: () => ({})
+      };
+
+      // Create activity for note creation
+      await activityService.createActivity(tempUser, {
+        type: 'note_created',
+        targetId: docRef.id,
+        title: data.title
+      });
+
+      return newNote;
     } catch (error) {
       console.error('Error creating note in Firestore:', error);
       throw new Error('Failed to create note in database');
@@ -373,99 +420,72 @@ export const notesService = {
     };
   },
 
-  async updateNote(userId: string, data: UpdateNoteData): Promise<Note> {
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-
-    if (!data.id) {
-      throw new Error('Note ID is required');
-    }
-
-    if (!data.title?.trim()) {
-      throw new Error('Title is required');
-    }
-
-    if (!data.type) {
-      throw new Error('Type is required');
-    }
-
-    if (!data.rating || data.rating < 1 || data.rating > 5) {
-      throw new Error('Rating must be between 1 and 5');
-    }
-
-    if (!data.date) {
-      throw new Error('Date is required');
-    }
-
-    if (!data.notes?.trim()) {
-      throw new Error('Notes are required');
-    }
-
-    if (!data.visibility) {
-      throw new Error('Visibility is required');
-    }
-
-    // If it's a restaurant note, validate location
-    if (data.type === 'restaurant' && !data.location?.name?.trim()) {
-      throw new Error('Restaurant name is required for restaurant notes');
-    }
-
-    // Clean up the location object to remove undefined values
-    const location = data.location ? {
-      name: data.location.name,
-      ...(data.location.address && { address: data.location.address }),
-      ...(data.location.coordinates?.latitude != null && 
-        data.location.coordinates?.longitude != null && {
-        coordinates: {
-          latitude: data.location.coordinates.latitude,
-          longitude: data.location.coordinates.longitude
-        }
-      })
-    } : undefined;
-
-    const noteRef = doc(db, 'notes', data.id);
-    const noteDoc = await getDoc(noteRef);
-
-    if (!noteDoc.exists()) {
-      throw new Error('Note not found');
-    }
-
-    const existingNote = noteDoc.data() as Note;
-    if (existingNote.userId !== userId) {
-      throw new Error('You do not have permission to edit this note');
-    }
-
-    // Clean up the data by removing undefined values
-    const cleanData = {
-      type: data.type,
-      title: data.title,
-      ...(data.menuItemId && { menuItemId: data.menuItemId }), // Only include if defined
-      rating: data.rating,
-      date: Timestamp.fromDate(new Date(data.date)),
-      ...(location && { location }), // Only include if defined
-      notes: data.notes,
-      tags: data.tags || [],
-      improvements: data.improvements || [],
-      wouldOrderAgain: data.wouldOrderAgain,
-      visibility: data.visibility,
-      photos: data.photos || [],
-      userId,
-      updatedAt: serverTimestamp(),
-    };
-
+  async updateNote(noteId: string, userId: string, data: Partial<UpdateNoteData>): Promise<void> {
     try {
-      await updateDoc(noteRef, cleanData);
-      return {
-        ...cleanData,
-        id: data.id,
-        createdAt: existingNote.createdAt,
-        updatedAt: Timestamp.now(),
-        sharedWith: existingNote.sharedWith,
-      } as Note;
-    } catch (error) {
-      console.error('Error updating note in Firestore:', error);
-      throw new Error('Failed to update note in database');
+      const noteRef = doc(db, 'notes', noteId);
+      const noteDoc = await getDoc(noteRef);
+
+      if (!noteDoc.exists()) {
+        throw new Error('Note not found');
+      }
+
+      const noteData = noteDoc.data();
+      if (noteData.userId !== userId) {
+        throw new Error('Not authorized to update this note');
+      }
+
+      const updateData = {
+        ...data,
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(noteRef, updateData);
+
+      // Get user data for activity creation
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+      const userData = userDoc.data();
+
+      // Create a temporary User object for activity service
+      const tempUser: User = {
+        uid: userId,
+        displayName: userData.username,
+        photoURL: userData.profilePicture || null,
+        email: userData.email,
+        emailVerified: true,
+        isAnonymous: false,
+        metadata: {},
+        providerData: [],
+        refreshToken: '',
+        tenantId: null,
+        phoneNumber: null,
+        providerId: 'firebase',
+        delete: async () => {},
+        getIdToken: async () => '',
+        getIdTokenResult: async () => ({
+          token: '',
+          signInProvider: null,
+          claims: {},
+          authTime: '',
+          issuedAtTime: '',
+          expirationTime: '',
+          signInSecondFactor: null
+        }),
+        reload: async () => {},
+        toJSON: () => ({})
+      };
+
+      // Create activity for note update
+      await activityService.createActivity(tempUser, {
+        type: 'note_updated',
+        targetId: noteId,
+        title: noteData.title
+      });
+    } catch (err) {
+      console.error('Error updating note:', err);
+      throw err;
     }
   },
 
@@ -529,7 +549,7 @@ export const notesService = {
         ...existingNote,
         ...updateData,
         updatedAt: Timestamp.now(),
-      };
+      } as Note;
     } catch (error) {
       console.error('Error updating note sharing in Firestore:', error);
       throw new Error('Failed to update note sharing settings');
