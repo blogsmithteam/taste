@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormInput } from '../auth/shared/FormInput';
 import { Button } from '../auth/shared/Button';
@@ -6,11 +6,12 @@ import { Checkbox } from '../auth/shared/Checkbox';
 import { Autocomplete } from '../shared/Autocomplete';
 import { FoodRating } from '../shared/FoodRating';
 import { useAuth } from '../../contexts/AuthContext';
-import { notesService, CreateNoteData } from '../../services/notes';
+import { notesService, CreateNoteData, UpdateNoteData } from '../../services/notes';
 import { restaurantsService } from '../../services/restaurants';
 import { menuItemsService, MenuItem } from '../../services/menuItems';
 import { recipeCreatorsService, RecipeCreator, RecipeCreatorType, CreateRecipeCreator } from '../../services/recipeCreators';
 import { auth } from '../../lib/firebase';
+import { Note } from '../../types/notes';
 
 interface RecipeCreatorFormData {
   id?: string;
@@ -56,7 +57,12 @@ interface FormErrors {
   recipeCreator?: string;
 }
 
-export const CreateNoteForm: React.FC = () => {
+interface NoteFormProps {
+  initialNote?: Note;
+  onSuccess?: (note: Note) => void;
+}
+
+export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [formData, setFormData] = useState<NoteFormData>({
@@ -77,6 +83,25 @@ export const CreateNoteForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialNote) {
+      setFormData({
+        type: initialNote.type,
+        title: initialNote.title,
+        rating: initialNote.rating,
+        date: initialNote.date.toDate().toISOString().split('T')[0],
+        notes: initialNote.notes,
+        tags: initialNote.tags,
+        improvements: initialNote.improvements,
+        wouldOrderAgain: initialNote.wouldOrderAgain,
+        visibility: initialNote.visibility,
+        photos: initialNote.photos,
+        recipeCreator: null, // This will be set if needed
+        location: initialNote.location
+      });
+    }
+  }, [initialNote]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -269,7 +294,7 @@ export const CreateNoteForm: React.FC = () => {
     }
 
     if (!user) {
-      setSubmitError('You must be logged in to create a note');
+      setSubmitError('You must be logged in to save a note');
       return;
     }
 
@@ -313,13 +338,21 @@ export const CreateNoteForm: React.FC = () => {
         }
       }
 
-      try {
-        await notesService.createNote(user.uid, formData);
-        setSuccessMessage('Note created successfully!');
+      let savedNote: Note;
+      if (initialNote) {
+        savedNote = await notesService.updateNote(user.uid, {
+          ...formData,
+          id: initialNote.id
+        } as UpdateNoteData);
+      } else {
+        savedNote = await notesService.createNote(user.uid, formData);
+      }
+
+      setSuccessMessage('Note saved successfully!');
+      if (onSuccess) {
+        onSuccess(savedNote);
+      } else {
         navigate('/tasting-notes');
-      } catch (noteError) {
-        console.error('Error creating note:', noteError);
-        setSubmitError('Failed to create note. Please try again.');
       }
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -535,13 +568,21 @@ export const CreateNoteForm: React.FC = () => {
         </div>
       )}
 
-      <Button
-        type="submit"
-        disabled={isLoading}
-        className="w-full"
-      >
-        {isLoading ? 'Creating...' : 'Create Note'}
-      </Button>
+      <div className="flex justify-end space-x-4">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => navigate('/tasting-notes')}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Saving...' : initialNote ? 'Save Changes' : 'Create Note'}
+        </Button>
+      </div>
     </form>
   );
 }; 

@@ -1,4 +1,4 @@
-import { collection, addDoc, Timestamp, serverTimestamp, query, where, getDocs, orderBy, limit, startAfter, QueryConstraint } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, serverTimestamp, query, where, getDocs, orderBy, limit, startAfter, QueryConstraint, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 export interface Note {
@@ -22,6 +22,7 @@ export interface Note {
   wouldOrderAgain: boolean;
   visibility: 'private' | 'friends' | 'public';
   photos: string[];
+  sharedWith: string[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -45,6 +46,10 @@ export interface CreateNoteData {
   wouldOrderAgain: boolean;
   visibility: 'private' | 'friends' | 'public';
   photos: string[];
+}
+
+export interface UpdateNoteData extends CreateNoteData {
+  id: string;
 }
 
 export interface NoteFilters {
@@ -353,5 +358,118 @@ export const notesService = {
       notes,
       lastVisible: snapshot.docs[snapshot.docs.length - 1]
     };
+  },
+
+  async updateNote(userId: string, data: UpdateNoteData): Promise<Note> {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    if (!data.id) {
+      throw new Error('Note ID is required');
+    }
+
+    if (!data.title?.trim()) {
+      throw new Error('Title is required');
+    }
+
+    if (!data.type) {
+      throw new Error('Type is required');
+    }
+
+    if (!data.rating || data.rating < 1 || data.rating > 5) {
+      throw new Error('Rating must be between 1 and 5');
+    }
+
+    if (!data.date) {
+      throw new Error('Date is required');
+    }
+
+    if (!data.notes?.trim()) {
+      throw new Error('Notes are required');
+    }
+
+    if (!data.visibility) {
+      throw new Error('Visibility is required');
+    }
+
+    // If it's a restaurant note, validate location
+    if (data.type === 'restaurant' && !data.location?.name?.trim()) {
+      throw new Error('Restaurant name is required for restaurant notes');
+    }
+
+    // Clean up the location object to remove undefined values
+    const location = data.location ? {
+      name: data.location.name,
+      ...(data.location.address && { address: data.location.address }),
+      ...(data.location.coordinates?.latitude != null && 
+        data.location.coordinates?.longitude != null && {
+        coordinates: {
+          latitude: data.location.coordinates.latitude,
+          longitude: data.location.coordinates.longitude
+        }
+      })
+    } : undefined;
+
+    const noteRef = doc(db, 'notes', data.id);
+    const noteDoc = await getDoc(noteRef);
+
+    if (!noteDoc.exists()) {
+      throw new Error('Note not found');
+    }
+
+    const existingNote = noteDoc.data() as Note;
+    if (existingNote.userId !== userId) {
+      throw new Error('You do not have permission to edit this note');
+    }
+
+    const noteData = {
+      ...data,
+      location,
+      userId,
+      date: Timestamp.fromDate(new Date(data.date)),
+      updatedAt: serverTimestamp(),
+    };
+
+    try {
+      await updateDoc(noteRef, noteData);
+      return {
+        ...noteData,
+        createdAt: existingNote.createdAt,
+        updatedAt: Timestamp.now(),
+      } as Note;
+    } catch (error) {
+      console.error('Error updating note in Firestore:', error);
+      throw new Error('Failed to update note in database');
+    }
+  },
+
+  async deleteNote(userId: string, noteId: string): Promise<void> {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    if (!noteId) {
+      throw new Error('Note ID is required');
+    }
+
+    const noteRef = doc(db, 'notes', noteId);
+    const noteDoc = await getDoc(noteRef);
+
+    if (!noteDoc.exists()) {
+      throw new Error('Note not found');
+    }
+
+    const note = noteDoc.data() as Note;
+    if (note.userId !== userId) {
+      throw new Error('You do not have permission to delete this note');
+    }
+
+    try {
+      await deleteDoc(noteRef);
+    } catch (error) {
+      console.error('Error deleting note from Firestore:', error);
+      throw new Error('Failed to delete note from database');
+    }
   }
 }; 

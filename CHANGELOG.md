@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced form components with accessibility improvements
 - Updated navigation to include create note functionality
 - Improved mobile responsiveness of navigation
+- Planned: Toast notification system for improved user feedback
 
 ### Deprecated
 - None

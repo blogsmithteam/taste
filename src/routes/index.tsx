@@ -7,6 +7,7 @@ import { Dashboard } from '../pages/Dashboard';
 import CreateNote from '../pages/CreateNote';
 import { TastingNotes } from '../pages/TastingNotes';
 import NotePage from '../pages/NotePage';
+import EditNote from '../pages/EditNote';
 import NotFound from '../pages/NotFound';
 
 export const router = createBrowserRouter([
@@ -55,6 +56,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <NotePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/notes/:id/edit',
+    element: (
+      <ProtectedRoute>
+        <EditNote />
       </ProtectedRoute>
     ),
   },
