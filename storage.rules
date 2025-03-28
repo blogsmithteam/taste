@@ -19,16 +19,50 @@ service firebase.storage {
         && request.resource.size < 5 * 1024 * 1024; // 5MB max
     }
 
+    function isValidImageMetadata() {
+      return request.resource.metadata != null 
+        && request.resource.metadata.noteId != null 
+        && request.resource.metadata.uploadedBy == request.auth.uid;
+    }
+
+    function debugLog(message) {
+      return debug(message);
+    }
+
     // Profile pictures
     match /users/{userId}/profile/{fileName} {
       allow read: if isAuthenticated();
       allow write: if isOwner(userId) && isValidImage();
     }
 
-    // Note images
+    // Note images - enhanced with metadata validation and debugging
     match /notes/{noteId}/images/{fileName} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && isValidImage();
+      allow read: if isAuthenticated() 
+        && debugLog("Read attempt for note image: " + noteId);
+      
+      allow create: if isAuthenticated() 
+        && isValidImage()
+        && isValidImageMetadata()
+        && debugLog("Create attempt for note image: " + noteId);
+      
+      allow update: if isAuthenticated()
+        && isValidImage()
+        && isValidImageMetadata()
+        && resource.metadata.uploadedBy == request.auth.uid
+        && debugLog("Update attempt for note image: " + noteId);
+      
+      allow delete: if isAuthenticated()
+        && resource.metadata.uploadedBy == request.auth.uid
+        && debugLog("Delete attempt for note image: " + noteId);
+    }
+
+    // Temporary uploads path for in-progress uploads
+    match /temp/{userId}/{fileName} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) 
+        && isValidImage()
+        && debugLog("Temporary upload attempt by user: " + userId);
+      allow delete: if isOwner(userId);
     }
   }
 }

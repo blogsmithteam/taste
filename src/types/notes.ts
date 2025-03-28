@@ -5,8 +5,8 @@ export type NoteType = 'restaurant' | 'recipe';
 
 interface Location {
   name: string;
-  address: string;
-  coordinates: {
+  address?: string;
+  coordinates?: {
     latitude: number;
     longitude: number;
   };

@@ -12,6 +12,7 @@ import { menuItemsService, MenuItem } from '../../services/menuItems';
 import { recipeCreatorsService, RecipeCreator, RecipeCreatorType, CreateRecipeCreator } from '../../services/recipeCreators';
 import { auth } from '../../lib/firebase';
 import { Note } from '../../types/notes';
+import { PhotoUpload } from '../photos/PhotoUpload';
 
 interface RecipeCreatorFormData {
   id?: string;
@@ -546,6 +547,56 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
           checked={formData.wouldOrderAgain}
           onChange={handleChange}
         />
+
+        <div className="space-y-4">
+          <label className="block text-sm font-medium text-gray-700">
+            Photos
+          </label>
+          
+          {/* Display existing photos */}
+          {formData.photos.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+              {formData.photos.map((photoUrl, index) => (
+                <div key={photoUrl} className="relative group">
+                  <img
+                    src={photoUrl}
+                    alt={`Photo ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        photos: prev.photos.filter(url => url !== photoUrl)
+                      }));
+                    }}
+                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Photo upload component */}
+          <PhotoUpload
+            noteId={initialNote?.id || 'temp'}
+            userId={user?.uid || ''}
+            onUploadComplete={(result) => {
+              setFormData(prev => ({
+                ...prev,
+                photos: [...prev.photos, result.url]
+              }));
+            }}
+            onError={(error) => {
+              setSubmitError(`Failed to upload photo: ${error.message}`);
+            }}
+          />
+        </div>
       </div>
 
       {submitError && (
