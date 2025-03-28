@@ -4,6 +4,7 @@ import { userService } from '../../services/user';
 import { ProfileFormData, DIETARY_PREFERENCES_OPTIONS, DEFAULT_USER_SETTINGS } from '../../types/user';
 import { DietaryPreferences } from './DietaryPreferences';
 import { Allergies } from './Allergies';
+import { PrivacySettings } from './PrivacySettings';
 
 interface ProfileFormProps {
   initialData?: Partial<ProfileFormData>;
@@ -121,7 +122,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-8">
       {/* Username */}
       <div>
         <label htmlFor="username" className="block text-sm font-medium text-gray-700">
@@ -179,37 +180,12 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
         error={errors.allergies}
       />
 
-      {/* Settings */}
+      {/* Replace the old settings section with the new PrivacySettings component */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-900">Settings</h3>
-        
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="isPrivate"
-            name="isPrivate"
-            checked={formData.settings.isPrivate}
-            onChange={handleChange}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-          />
-          <label htmlFor="isPrivate" className="ml-2 text-sm text-gray-700">
-            Private Profile
-          </label>
-        </div>
-
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="emailNotifications"
-            name="emailNotifications"
-            checked={formData.settings.emailNotifications}
-            onChange={handleChange}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-          />
-          <label htmlFor="emailNotifications" className="ml-2 text-sm text-gray-700">
-            Email Notifications
-          </label>
-        </div>
+        <PrivacySettings
+          settings={formData.settings}
+          onChange={(newSettings) => setFormData(prev => ({ ...prev, settings: newSettings }))}
+        />
       </div>
 
       {/* Error and Success Messages */}
@@ -225,16 +201,18 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
       )}
 
       {/* Submit Button */}
-      <div>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className={`w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-            isLoading ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          {isLoading ? 'Saving...' : 'Save Profile'}
-        </button>
+      <div className="pt-5">
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className={`ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isLoading ? 'Saving...' : 'Save'}
+          </button>
+        </div>
       </div>
     </form>
   );
