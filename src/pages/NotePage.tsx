@@ -63,7 +63,7 @@ const NotePage: React.FC = () => {
     try {
       setIsDeleting(true);
       await notesService.deleteNote(note.id, user.uid);
-      navigate('/app/notes');
+      navigate('/app/tasting-notes');
     } catch (err) {
       console.error('Error deleting note:', err);
       setError('Failed to delete note');
@@ -112,7 +112,7 @@ const NotePage: React.FC = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <button
-            onClick={() => navigate('/notes')}
+            onClick={() => navigate('/app/tasting-notes')}
             className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
           >
             <svg
