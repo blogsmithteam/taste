@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { userService } from '../../services/user';
 import { ProfileFormData, DIETARY_PREFERENCES_OPTIONS, DEFAULT_USER_SETTINGS } from '../../types/user';
 import { DietaryPreferences } from './DietaryPreferences';
+import { Allergies } from './Allergies';
 
 interface ProfileFormProps {
   initialData?: Partial<ProfileFormData>;
@@ -65,27 +66,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
     }));
   };
 
-  const handleAllergyAdd = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const value = (e.target as HTMLInputElement).value.trim();
-      if (value && !formData.allergies.includes(value)) {
-        setFormData(prev => ({
-          ...prev,
-          allergies: [...prev.allergies, value]
-        }));
-        (e.target as HTMLInputElement).value = '';
-      }
-    }
-  };
-
-  const handleAllergyRemove = (allergy: string) => {
-    setFormData(prev => ({
-      ...prev,
-      allergies: prev.allergies.filter(a => a !== allergy)
-    }));
-  };
-
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
@@ -99,7 +79,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
       newErrors.bio = 'Bio must be less than 500 characters';
     }
 
-    // Validate dietary preferences
     if (formData.dietaryPreferences.length > 0) {
       const invalidPreferences = formData.dietaryPreferences.filter(
         pref => !DIETARY_PREFERENCES_OPTIONS.includes(pref)
@@ -107,6 +86,11 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
       if (invalidPreferences.length > 0) {
         newErrors.dietaryPreferences = 'Some dietary preferences are invalid';
       }
+    }
+
+    // Add validation for allergies
+    if (formData.allergies.length > 50) {
+      newErrors.allergies = 'Maximum of 50 allergies allowed';
     }
 
     setErrors(newErrors);
@@ -188,36 +172,12 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
         />
       </div>
 
-      {/* Allergies */}
-      <div>
-        <label htmlFor="allergies" className="block text-sm font-medium text-gray-700">
-          Allergies
-        </label>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {formData.allergies.map(allergy => (
-            <span
-              key={allergy}
-              className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-800"
-            >
-              {allergy}
-              <button
-                type="button"
-                onClick={() => handleAllergyRemove(allergy)}
-                className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-red-200"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-        <input
-          type="text"
-          id="allergies"
-          placeholder="Type and press Enter to add"
-          onKeyDown={handleAllergyAdd}
-          className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-        />
-      </div>
+      {/* Replace the old allergies section with the new component */}
+      <Allergies
+        selectedAllergies={formData.allergies}
+        onChange={(allergies) => setFormData(prev => ({ ...prev, allergies }))}
+        error={errors.allergies}
+      />
 
       {/* Settings */}
       <div className="space-y-4">
