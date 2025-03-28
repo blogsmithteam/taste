@@ -25,6 +25,11 @@ service firebase.storage {
         && request.resource.metadata.uploadedBy == request.auth.uid;
     }
 
+    function isValidThumbnail() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 500 * 1024; // 500KB max for thumbnails
+    }
+
     function debugLog(message) {
       return debug(message);
     }
@@ -54,6 +59,19 @@ service firebase.storage {
       allow delete: if isAuthenticated()
         && resource.metadata.uploadedBy == request.auth.uid
         && debugLog("Delete attempt for note image: " + noteId);
+    }
+
+    // Thumbnails
+    match /notes/{noteId}/thumbnails/{fileName} {
+      allow read: if isAuthenticated();
+      
+      allow create: if isAuthenticated() 
+        && isValidThumbnail()
+        && isValidImageMetadata()
+        && debugLog("Create attempt for thumbnail: " + noteId);
+      
+      allow delete: if isAuthenticated()
+        && resource.metadata.uploadedBy == request.auth.uid;
     }
 
     // Temporary uploads path for in-progress uploads

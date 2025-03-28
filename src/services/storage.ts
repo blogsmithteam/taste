@@ -37,10 +37,28 @@ export class StorageService {
     onProgress?: UploadProgressCallback
   ): Promise<PhotoUploadResult> {
     try {
+      // Debug logging
+      console.debug('Upload photo - File object:', {
+        name: file?.name,
+        type: file?.type,
+        size: file?.size,
+        lastModified: file?.lastModified
+      });
+
+      if (!file?.name) {
+        throw new Error('Invalid file object: missing name property');
+      }
+
       // Generate a unique filename to prevent collisions
       const fileExtension = file.name.split('.').pop();
       const fileName = `${uuidv4()}.${fileExtension}`;
-      const filePath = `notes/${noteId}/images/${fileName}`;
+      
+      // Determine if this is a thumbnail based on file size and metadata
+      const isThumbnail = file.size < 500 * 1024; // Less than 500KB is likely a thumbnail
+      const filePath = isThumbnail 
+        ? `notes/${noteId}/thumbnails/${fileName}`
+        : `notes/${noteId}/images/${fileName}`;
+      
       const storageRef = ref(this.storage, filePath);
 
       // Set up metadata according to our security rules requirements
@@ -49,7 +67,8 @@ export class StorageService {
         customMetadata: {
           noteId: noteId,
           uploadedBy: userId,
-          originalName: file.name
+          originalName: file.name,
+          isThumbnail: isThumbnail.toString()
         }
       };
 

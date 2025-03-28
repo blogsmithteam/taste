@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { StorageService } from '../../services/storage';
+import { ImageOptimizationService } from '../../services/imageOptimization';
 
 interface PhotoUploadProps {
   noteId: string;
@@ -20,6 +21,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [optimizationProgress, setOptimizationProgress] = useState<string | null>(null);
 
   const handleUpload = useCallback(async (file: File) => {
     try {
@@ -31,13 +33,34 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
       const previewUrl = URL.createObjectURL(file);
       setPreview(previewUrl);
 
-      // Start upload with progress tracking
-      const result = await storageService.uploadNotePhoto(
-        file,
-        noteId,
-        userId,
-        (progress) => setUploadProgress(progress)
-      );
+      // Start optimization
+      setOptimizationProgress('Optimizing image...');
+      const optimizedFile = await ImageOptimizationService.optimizeImage(file);
+      setOptimizationProgress('Creating thumbnail...');
+      const thumbnail = await ImageOptimizationService.createThumbnail(file);
+
+      // Upload both optimized image and thumbnail
+      setOptimizationProgress(null);
+      const [mainResult, thumbnailResult] = await Promise.all([
+        storageService.uploadNotePhoto(
+          optimizedFile,
+          noteId,
+          userId,
+          (progress) => setUploadProgress(progress)
+        ),
+        storageService.uploadNotePhoto(
+          thumbnail,
+          noteId,
+          userId,
+          () => {} // We don't need to track thumbnail upload progress
+        )
+      ]);
+
+      // Add thumbnail path to metadata
+      const result = {
+        ...mainResult,
+        thumbnailUrl: thumbnailResult.url
+      };
 
       onUploadComplete(result);
     } catch (error) {
@@ -45,6 +68,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+      setOptimizationProgress(null);
     }
   }, [noteId, userId, onUploadComplete, onError, preview]);
 
@@ -52,7 +76,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
     },
-    maxSize: 5 * 1024 * 1024, // 5MB max size
+    maxSize: 10 * 1024 * 1024, // 10MB max size (before optimization)
     multiple: false,
     onDrop: async (acceptedFiles: File[]) => {
       if (acceptedFiles.length > 0) {
@@ -78,10 +102,10 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
               alt="Upload preview"
               className="max-h-48 mx-auto rounded-lg"
             />
-            {isUploading && (
+            {(isUploading || optimizationProgress) && (
               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
-                <div className="text-white">
-                  Uploading... {Math.round(uploadProgress)}%
+                <div className="text-white text-center">
+                  {optimizationProgress || `Uploading... ${Math.round(uploadProgress)}%`}
                 </div>
               </div>
             )}
@@ -94,7 +118,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
                 : 'Drag & drop an image here, or click to select'}
             </p>
             <p className="text-sm text-gray-500">
-              Maximum file size: 5MB
+              Maximum file size: 10MB (will be optimized)
             </p>
           </div>
         )}
