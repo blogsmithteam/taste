@@ -13,6 +13,7 @@ import Layout from '../components/Layout';
 import DiscoverUsers from '../pages/DiscoverUsers';
 import { UserProfileView } from '../components/profile/UserProfileView';
 import { useParams } from 'react-router-dom';
+import { SharedWithMeNotes } from '../components/notes/SharedWithMeNotes';
 
 // Wrapper component to pass userId from URL params
 const UserProfileViewWrapper = () => {
@@ -52,6 +53,10 @@ export const router = createBrowserRouter([
       {
         path: 'tasting-notes',
         element: <TastingNotes />
+      },
+      {
+        path: 'shared-with-me',
+        element: <SharedWithMeNotes />
       },
       {
         path: 'create-note',

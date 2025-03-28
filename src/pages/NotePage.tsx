@@ -8,6 +8,7 @@ import { notesService } from '../services/notes';
 import { useAuth } from '../contexts/AuthContext';
 import { Dialog } from '@headlessui/react';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { NoteShareDialog } from '../components/notes/NoteShareDialog';
 
 const NotePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +18,7 @@ const NotePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -60,14 +62,30 @@ const NotePage: React.FC = () => {
 
     try {
       setIsDeleting(true);
-      await notesService.deleteNote(user.uid, note.id);
-      navigate('/app/tasting-notes', { replace: true });
+      await notesService.deleteNote(note.id, user.uid);
+      navigate('/app/notes');
     } catch (err) {
       console.error('Error deleting note:', err);
-      setError('Failed to delete note. Please try again.');
+      setError('Failed to delete note');
     } finally {
       setIsDeleting(false);
       setShowDeleteDialog(false);
+    }
+  };
+
+  const handleShare = () => {
+    setShowShareDialog(true);
+  };
+
+  const handleUpdateSharing = async (visibility: Note['visibility'], sharedWith: string[]) => {
+    if (!note || !user) return;
+
+    try {
+      const updatedNote = await notesService.updateNoteSharing(note.id, user.uid, visibility, sharedWith);
+      setNote(updatedNote);
+    } catch (err) {
+      console.error('Error updating note sharing:', err);
+      throw err;
     }
   };
 
@@ -79,23 +97,15 @@ const NotePage: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error || !note) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="text-red-600 text-xl mb-4">{error}</div>
-        <button
-          onClick={() => navigate('/notes')}
-          className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
-        >
-          Back to Notes
-        </button>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-red-600">{error || 'Note not found'}</div>
       </div>
     );
   }
 
-  if (!note) {
-    return null;
-  }
+  const canEdit = user && note.userId === user.uid;
 
   return (
     <>
@@ -123,8 +133,9 @@ const NotePage: React.FC = () => {
 
         <NoteView
           note={note}
-          onEdit={handleEdit}
-          onDelete={() => setShowDeleteDialog(true)}
+          onEdit={canEdit ? handleEdit : undefined}
+          onDelete={canEdit ? () => setShowDeleteDialog(true) : undefined}
+          onShare={canEdit ? handleShare : undefined}
         />
       </div>
 
@@ -137,34 +148,29 @@ const NotePage: React.FC = () => {
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
 
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="mx-auto max-w-sm rounded-lg bg-white p-6">
+          <Dialog.Panel className="mx-auto max-w-sm rounded-lg bg-white p-6 shadow-xl">
             <div className="flex items-center gap-4">
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
-              </div>
-              <div>
-                <Dialog.Title className="text-lg font-medium text-gray-900">
-                  Delete Note
-                </Dialog.Title>
-                <Dialog.Description className="mt-2 text-sm text-gray-500">
-                  Are you sure you want to delete this note? This action cannot be undone.
-                </Dialog.Description>
-              </div>
+              <ExclamationTriangleIcon className="h-8 w-8 text-red-500" />
+              <Dialog.Title className="text-lg font-medium">
+                Delete Note
+              </Dialog.Title>
             </div>
+
+            <p className="mt-4 text-gray-600">
+              Are you sure you want to delete this note? This action cannot be undone.
+            </p>
 
             <div className="mt-6 flex justify-end gap-3">
               <button
-                type="button"
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 onClick={() => setShowDeleteDialog(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800"
               >
                 Cancel
               </button>
               <button
-                type="button"
-                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
                 onClick={handleDelete}
                 disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
               >
                 {isDeleting ? 'Deleting...' : 'Delete'}
               </button>
@@ -172,6 +178,14 @@ const NotePage: React.FC = () => {
           </Dialog.Panel>
         </div>
       </Dialog>
+
+      {/* Share Dialog */}
+      <NoteShareDialog
+        note={note}
+        isOpen={showShareDialog}
+        onClose={() => setShowShareDialog(false)}
+        onUpdateSharing={handleUpdateSharing}
+      />
     </>
   );
 };

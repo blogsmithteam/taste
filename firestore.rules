@@ -24,6 +24,11 @@ service cloud.firestore {
       return resource.data.visibility == 'friends';
     }
 
+    function isSharedWithUser() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email in resource.data.sharedWith;
+    }
+
     function isValidUserData(data) {
       return data.username is string &&
         data.username.size() >= 3 &&
@@ -139,7 +144,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         isOwner(resource.data.userId) || 
         isPublic() || 
-        (isFriendsOnly() && isFriend(resource.data.userId))
+        (isFriendsOnly() && isFriend(resource.data.userId)) ||
+        isSharedWithUser()
       );
       allow create: if isAuthenticated();
       allow update: if isOwner(resource.data.userId);

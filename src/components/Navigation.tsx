@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { HomeIcon, BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon, ArrowRightOnRectangleIcon, UsersIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon, ArrowRightOnRectangleIcon, UsersIcon, InboxIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -24,6 +24,7 @@ const Navigation = () => {
 
   const navItems = [
     { path: '/app/tasting-notes', label: 'Tasting Notes', icon: BookOpenIcon },
+    { path: '/app/shared-with-me', label: 'Shared with Me', icon: InboxIcon },
     { path: '/app/create-note', label: 'Create Note', icon: PlusIcon },
     { path: '/app/discover', label: 'Discover Users', icon: UsersIcon },
     { path: '/app/profile', label: 'Profile', icon: UserIcon },

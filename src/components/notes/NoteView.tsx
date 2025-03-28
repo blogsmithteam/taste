@@ -1,15 +1,16 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { StarIcon, MapPinIcon, LockClosedIcon, UserGroupIcon, GlobeAltIcon } from '@heroicons/react/24/solid';
+import { StarIcon, MapPinIcon, LockClosedIcon, UserGroupIcon, GlobeAltIcon, ShareIcon } from '@heroicons/react/24/solid';
 import { Note } from '../../types/notes';
 
 interface NoteViewProps {
   note: Note;
   onEdit?: () => void;
   onDelete?: () => void;
+  onShare?: () => void;
 }
 
-const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete }) => {
+const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) => {
   const renderVisibilityIcon = () => {
     switch (note.visibility) {
       case 'private':
@@ -46,6 +47,15 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete }) => {
           <h1 className="text-3xl font-bold text-gray-900">{note.title}</h1>
           <div className="flex items-center gap-4">
             {renderVisibilityIcon()}
+            {onShare && (
+              <button
+                onClick={onShare}
+                className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-2"
+              >
+                <ShareIcon className="h-5 w-5" />
+                Share
+              </button>
+            )}
             {onEdit && (
               <button
                 onClick={onEdit}
@@ -137,16 +147,15 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete }) => {
       )}
 
       {/* Would Order Again */}
-      {note.type === 'restaurant' && (
-        <div className="p-6">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-700">Would order again:</span>
-            <span className={note.wouldOrderAgain ? 'text-green-600' : 'text-red-600'}>
-              {note.wouldOrderAgain ? 'Yes' : 'No'}
-            </span>
-          </div>
+      <div className="p-6">
+        <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+          note.wouldOrderAgain
+            ? 'bg-green-100 text-green-800'
+            : 'bg-red-100 text-red-800'
+        }`}>
+          {note.wouldOrderAgain ? 'Would order again' : 'Would not order again'}
         </div>
-      )}
+      </div>
     </article>
   );
 };

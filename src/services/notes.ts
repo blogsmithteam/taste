@@ -496,5 +496,133 @@ export const notesService = {
       console.error('Error deleting note from Firestore:', error);
       throw new Error('Failed to delete note from database');
     }
+  },
+
+  async updateNoteSharing(noteId: string, userId: string, visibility: Note['visibility'], sharedWith: string[]): Promise<Note> {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    const noteRef = doc(db, 'notes', noteId);
+    const noteDoc = await getDoc(noteRef);
+
+    if (!noteDoc.exists()) {
+      throw new Error('Note not found');
+    }
+
+    const existingNote = { id: noteDoc.id, ...noteDoc.data() } as Note;
+
+    // Check if user has permission to update the note
+    if (existingNote.userId !== userId) {
+      throw new Error('You do not have permission to update this note');
+    }
+
+    const updateData = {
+      visibility,
+      sharedWith,
+      updatedAt: serverTimestamp(),
+    };
+
+    try {
+      await updateDoc(noteRef, updateData);
+      return {
+        ...existingNote,
+        ...updateData,
+        updatedAt: Timestamp.now(),
+      };
+    } catch (error) {
+      console.error('Error updating note sharing in Firestore:', error);
+      throw new Error('Failed to update note sharing settings');
+    }
+  },
+
+  async fetchSharedWithMe(userId: string, options: FetchNotesOptions = {}): Promise<{ notes: Note[]; lastVisible: any }> {
+    const {
+      filters,
+      pageSize = 10,
+      lastVisible,
+      sortBy = 'createdAt',
+      sortDirection = 'desc'
+    } = options;
+
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        console.error('User document not found for ID:', userId);
+        throw new Error('User not found');
+      }
+
+      const userData = userDoc.data();
+      if (!userData?.email) {
+        console.error('User email not found in document:', userId);
+        throw new Error('User email not found');
+      }
+
+      const userEmail = userData.email;
+
+      const constraints: QueryConstraint[] = [
+        where('sharedWith', 'array-contains', userEmail)
+      ];
+
+      // Apply filters (same as fetchNotes)
+      if (filters) {
+        if (filters.type) {
+          constraints.push(where('type', '==', filters.type));
+        }
+        if (filters.rating) {
+          constraints.push(where('rating', '==', filters.rating));
+        }
+        if (filters.wouldOrderAgain !== undefined) {
+          constraints.push(where('wouldOrderAgain', '==', filters.wouldOrderAgain));
+        }
+        if (filters.dateFrom) {
+          constraints.push(where('date', '>=', Timestamp.fromDate(filters.dateFrom)));
+        }
+        if (filters.dateTo) {
+          constraints.push(where('date', '<=', Timestamp.fromDate(filters.dateTo)));
+        }
+        if (filters.tags && filters.tags.length > 0) {
+          constraints.push(where('tags', 'array-contains-any', filters.tags));
+        }
+      }
+
+      // Add sorting
+      constraints.push(orderBy(sortBy, sortDirection));
+
+      // If we have a search term, fetch more results for client-side filtering
+      const fetchSize = filters?.searchTerm ? Math.max(pageSize * 3, 30) : pageSize;
+
+      // Add pagination
+      constraints.push(limit(fetchSize));
+      if (lastVisible) {
+        constraints.push(startAfter(lastVisible));
+      }
+
+      const q = query(collection(db, 'notes'), ...constraints);
+      const snapshot = await getDocs(q);
+
+      let notes = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Note[];
+
+      // Apply client-side text search if needed
+      if (filters?.searchTerm) {
+        notes = notes.filter(note => matchesSearchTerm(note, filters.searchTerm!));
+        // Trim to requested page size after filtering
+        notes = notes.slice(0, pageSize);
+      }
+
+      return {
+        notes,
+        lastVisible: snapshot.docs[snapshot.docs.length - 1]
+      };
+    } catch (error) {
+      console.error('Error in fetchSharedWithMe:', error);
+      if (error instanceof Error) {
+        throw new Error(`Failed to fetch shared notes: ${error.message}`);
+      }
+      throw new Error('Failed to fetch shared notes: Unknown error');
+    }
   }
 }; 

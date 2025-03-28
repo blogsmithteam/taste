@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, FieldValue, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, FieldValue, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { UserProfile, ProfileFormData, DEFAULT_USER_SETTINGS } from '../types/user';
 
@@ -136,31 +136,49 @@ class UserService {
     return userData.following.includes(targetUserId);
   }
 
-  async createTestUser(uid: string): Promise<void> {
-    const userRef = doc(db, 'users', uid);
-    const timestamp = serverTimestamp();
-    const testUser: Omit<UserProfile, 'createdAt' | 'updatedAt'> & {
-      createdAt: FieldValue;
-      updatedAt: FieldValue;
-    } = {
-      uid,
-      username: 'Test User',
-      email: 'test@example.com',
-      profilePicture: '',
-      bio: 'This is a test user',
-      dietaryPreferences: ['Vegetarian'],
-      allergies: [],
-      followers: [],
-      following: [],
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      settings: {
-        ...DEFAULT_USER_SETTINGS,
-        isPrivate: false
-      }
-    };
+  async getFollowingProfiles(userId: string): Promise<UserProfile[]> {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (!userDoc.exists()) {
+      throw new Error('User not found');
+    }
 
-    await setDoc(userRef, testUser);
+    const userData = userDoc.data() as UserProfile;
+    const followingIds = userData.following;
+
+    if (!followingIds.length) {
+      return [];
+    }
+
+    // Get all following users' profiles
+    const followingProfiles = await Promise.all(
+      followingIds.map(async (followingId) => {
+        const followingDoc = await getDoc(doc(db, 'users', followingId));
+        if (followingDoc.exists()) {
+          return { ...followingDoc.data(), uid: followingDoc.id } as UserProfile;
+        }
+        return null;
+      })
+    );
+
+    // Filter out any null values (users that weren't found)
+    return followingProfiles.filter((profile): profile is UserProfile => profile !== null);
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+
+    if (!userDoc.exists()) {
+      throw new Error('User not found');
+    }
+
+    try {
+      // Delete the user document
+      await deleteDoc(userRef);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw new Error('Failed to delete user');
+    }
   }
 }
 
