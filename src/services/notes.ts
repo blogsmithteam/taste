@@ -637,22 +637,8 @@ export const notesService = {
     } = options;
 
     try {
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      if (!userDoc.exists()) {
-        console.error('User document not found for ID:', userId);
-        throw new Error('User not found');
-      }
-
-      const userData = userDoc.data();
-      if (!userData?.email) {
-        console.error('User email not found in document:', userId);
-        throw new Error('User email not found');
-      }
-
-      const userEmail = userData.email;
-
       const constraints: QueryConstraint[] = [
-        where('sharedWith', 'array-contains', userEmail)
+        where('sharedWith', 'array-contains', userId)
       ];
 
       // Apply filters (same as fetchNotes)

@@ -41,7 +41,7 @@ export const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
   };
 
   const handleFriendSelect = (selectedFriends: UserProfile[]) => {
-    // Use user IDs instead of emails
+    // Use user IDs
     const selectedUserIds = selectedFriends.map(friend => friend.uid);
     // Merge with existing IDs, removing duplicates
     const newSharedWith = Array.from(new Set([...sharedWith, ...selectedUserIds]));
@@ -51,15 +51,7 @@ export const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
   const handleSave = async () => {
     try {
       setIsLoading(true);
-      console.log('Starting share update with:', {
-        visibility,
-        sharedWith,
-        currentSharedWith: note.sharedWith || [],
-        noteId: note.id
-      });
-      
       await onUpdateSharing(visibility, sharedWith);
-      console.log('Successfully updated note sharing');
       onClose();
     } catch (error) {
       console.error('Error in handleSave:', error);
