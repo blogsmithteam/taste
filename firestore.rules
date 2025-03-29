@@ -26,6 +26,28 @@ service cloud.firestore {
         request.auth.uid in resource.data.familyMembers
       );
     }
+
+    function canModifyFamilyMembers(userId) {
+      let incomingData = request.resource.data;
+      let currentData = resource.data;
+      
+      // Allow if user is modifying their own document
+      let isOwnDocument = isOwner(userId);
+      
+      // Allow if user is being added/removed as a family member
+      let isFamilyOperation = 
+        incomingData.diff(currentData).affectedKeys().hasOnly(['familyMembers', 'updatedAt']) &&
+        (
+          // Adding exactly one family member
+          (incomingData.familyMembers.size() == currentData.familyMembers.size() + 1 &&
+           incomingData.familyMembers.removeAll(currentData.familyMembers).size() == 1) ||
+          // Removing exactly one family member
+          (incomingData.familyMembers.size() == currentData.familyMembers.size() - 1 &&
+           currentData.familyMembers.removeAll(incomingData.familyMembers).size() == 1)
+        );
+      
+      return isOwnDocument || isFamilyOperation;
+    }
     
     function isPublic() {
       return 'visibility' in resource.data && resource.data.visibility == 'public';
@@ -58,43 +80,20 @@ service cloud.firestore {
     }
 
     function isValidPartialUpdate(data) {
-      let hasValidUsername = !('username' in data) || (
-        data.username is string && 
-        data.username.size() >= 3
-      );
-      let hasValidBio = !('bio' in data) || (
-        data.bio is string && 
-        data.bio.size() <= 500
-      );
-      let hasValidPreferences = !('dietaryPreferences' in data) || (
-        data.dietaryPreferences is list &&
-        data.dietaryPreferences.size() <= 12
-      );
-      let hasValidAllergies = !('allergies' in data) || (
-        data.allergies is list
-      );
+      let hasValidUsername = !('username' in data) || (data.username is string && data.username.size() >= 3);
+      let hasValidEmail = !('email' in data) || (data.email is string && data.email.matches('^[^@]+@[^@]+\\.[^@]+$'));
+      let hasValidBio = !('bio' in data) || (data.bio is string && data.bio.size() <= 500);
       let hasValidSettings = !('settings' in data) || (
         data.settings is map &&
-        (!('isPrivate' in data.settings) || data.settings.isPrivate is bool) &&
-        (!('emailNotifications' in data.settings) || data.settings.emailNotifications is bool) &&
-        (!('language' in data.settings) || data.settings.language == 'en')
+        (!('isPrivate' in data.settings) || data.settings.isPrivate is bool)
       );
-      let hasValidFollowers = !('followers' in data) || (
-        data.followers is list &&
-        data.followers.size() <= 10000
-      );
-      let hasValidFollowing = !('following' in data) || (
-        data.following is list &&
-        data.following.size() <= 5000
-      );
+      let hasValidFamilyMembers = !('familyMembers' in data) || data.familyMembers is list;
       
       return hasValidUsername && 
+        hasValidEmail && 
         hasValidBio && 
-        hasValidPreferences && 
-        hasValidAllergies && 
         hasValidSettings &&
-        hasValidFollowers &&
-        hasValidFollowing;
+        hasValidFamilyMembers;
     }
 
     // Users collection
@@ -112,17 +111,7 @@ service cloud.firestore {
         // Allow users to update their own profile
         (isOwner(userId) && isValidPartialUpdate(request.resource.data)) ||
         // Allow family member operations
-        (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['familyMembers', 'updatedAt']) &&
-          (
-            // Adding to family members array
-            (request.resource.data.familyMembers.size() == resource.data.familyMembers.size() + 1 &&
-             request.resource.data.familyMembers.removeAll(resource.data.familyMembers).size() == 1) ||
-            // Removing from family members array
-            (request.resource.data.familyMembers.size() == resource.data.familyMembers.size() - 1 &&
-             resource.data.familyMembers.removeAll(request.resource.data.familyMembers).size() == 1)
-          )
-        )
+        canModifyFamilyMembers(userId)
       );
       
       allow delete: if isOwner(userId);

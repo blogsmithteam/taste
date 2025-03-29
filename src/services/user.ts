@@ -269,15 +269,32 @@ class UserService {
     try {
       const userRef = doc(db, 'users', userId);
       const familyMemberRef = doc(db, 'users', familyMemberId);
+      const timestamp = serverTimestamp();
+
+      // First, verify both users exist
+      const [userDoc, familyMemberDoc] = await Promise.all([
+        getDoc(userRef),
+        getDoc(familyMemberRef)
+      ]);
+
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+      if (!familyMemberDoc.exists()) {
+        throw new Error('Family member not found');
+      }
 
       // Add each user to the other's family members list
-      await updateDoc(userRef, {
-        familyMembers: arrayUnion(familyMemberId)
-      });
-
-      await updateDoc(familyMemberRef, {
-        familyMembers: arrayUnion(userId)
-      });
+      await Promise.all([
+        updateDoc(userRef, {
+          familyMembers: arrayUnion(familyMemberId),
+          updatedAt: timestamp
+        }),
+        updateDoc(familyMemberRef, {
+          familyMembers: arrayUnion(userId),
+          updatedAt: timestamp
+        })
+      ]);
     } catch (error) {
       console.error('Error adding family member:', error);
       throw error;
@@ -288,15 +305,32 @@ class UserService {
     try {
       const userRef = doc(db, 'users', userId);
       const familyMemberRef = doc(db, 'users', familyMemberId);
+      const timestamp = serverTimestamp();
+
+      // First, verify both users exist
+      const [userDoc, familyMemberDoc] = await Promise.all([
+        getDoc(userRef),
+        getDoc(familyMemberRef)
+      ]);
+
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+      if (!familyMemberDoc.exists()) {
+        throw new Error('Family member not found');
+      }
 
       // Remove each user from the other's family members list
-      await updateDoc(userRef, {
-        familyMembers: arrayRemove(familyMemberId)
-      });
-
-      await updateDoc(familyMemberRef, {
-        familyMembers: arrayRemove(userId)
-      });
+      await Promise.all([
+        updateDoc(userRef, {
+          familyMembers: arrayRemove(familyMemberId),
+          updatedAt: timestamp
+        }),
+        updateDoc(familyMemberRef, {
+          familyMembers: arrayRemove(userId),
+          updatedAt: timestamp
+        })
+      ]);
     } catch (error) {
       console.error('Error removing family member:', error);
       throw error;
