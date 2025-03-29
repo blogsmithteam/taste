@@ -1,199 +1,120 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { collection, query, limit, getDocs, orderBy, startAfter, QueryDocumentSnapshot, DocumentData, where } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { UserProfile } from '../types/user';
-import { FollowButton } from '../components/profile/FollowButton';
-import { UserIcon } from '@heroicons/react/24/outline';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/user';
-
-const USERS_PER_PAGE = 12;
+import { User } from '../types/user';
+import { UserCard } from '../components/users/UserCard';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 const DiscoverUsers: React.FC = () => {
+  const location = useLocation();
   const { user } = useAuth();
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [hasMore, setHasMore] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchUsers = async (lastDoc?: QueryDocumentSnapshot<DocumentData>) => {
-    if (!user) {
-      setError('You must be logged in to view users');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Create a base query that:
-      // 1. Only shows public profiles
-      // 2. Orders by username for consistent pagination
-      let baseQuery = query(
-        collection(db, 'users'),
-        where('settings.isPrivate', '==', false),
-        orderBy('username'),
-        limit(USERS_PER_PAGE)
-      );
-
-      if (lastDoc) {
-        baseQuery = query(
-          collection(db, 'users'),
-          where('settings.isPrivate', '==', false),
-          orderBy('username'),
-          startAfter(lastDoc),
-          limit(USERS_PER_PAGE)
-        );
-      }
-
-      const querySnapshot = await getDocs(baseQuery);
-      
-      if (querySnapshot.empty) {
-        console.log('No users found in query');
-        setHasMore(false);
-        if (!lastDoc) {
-          setUsers([]);
-        }
-        setLoading(false);
-        return;
-      }
-
-      console.log(`Found ${querySnapshot.docs.length} users`);
-      const newUsers = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        console.log('User data:', { uid: doc.id, ...data });
-        return {
-          ...data,
-          uid: doc.id,
-        } as UserProfile;
-      }).filter(u => u.uid !== user.uid); // Filter out the current user
-
-      console.log(`After filtering current user, ${newUsers.length} users remain`);
-
-      setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1] || null);
-      setHasMore(querySnapshot.docs.length === USERS_PER_PAGE);
-
-      if (lastDoc) {
-        setUsers(prev => [...prev, ...newUsers]);
-      } else {
-        setUsers(newUsers);
-      }
-    } catch (err) {
-      console.error('Error loading users:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const isAllFriendsMode = location.pathname === '/app/friends';
 
   useEffect(() => {
+    const fetchUsers = async () => {
+      if (!user) return;
+      
+      try {
+        setIsLoading(true);
+        let fetchedUsers;
+        
+        if (isAllFriendsMode) {
+          fetchedUsers = await userService.getFollowing(user.uid);
+        } else {
+          const allUsers = await userService.getAllUsers();
+          fetchedUsers = allUsers.filter(u => u.id !== user.uid);
+        }
+        
+        setUsers(fetchedUsers);
+      } catch (err) {
+        setError(isAllFriendsMode 
+          ? 'Failed to load friends. Please try again later.'
+          : 'Failed to load users. Please try again later.'
+        );
+        console.error('Error fetching users:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchUsers();
-  }, [user]); // Add user to dependency array
+  }, [user, isAllFriendsMode]);
 
-  const loadMore = () => {
-    if (lastVisible) {
-      fetchUsers(lastVisible);
-    }
-  };
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
-          <div className="rounded-md bg-red-50 p-4">
-            <p className="text-sm text-red-700">{error}</p>
-            <button
-              onClick={() => {
-                setError(null);
-                setLoading(true);
-                fetchUsers();
-              }}
-              className="mt-3 text-sm font-medium text-red-600 hover:text-red-500"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const filteredUsers = searchQuery
+    ? users.filter(user => 
+        user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.bio?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : users;
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Discover Users</h1>
-          </div>
-          
-          {users.length === 0 && !loading ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No users found</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {users.map((user) => (
-                <div
-                  key={user.uid}
-                  className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-200"
-                >
-                  <div className="p-4">
-                    <Link
-                      to={`/app/users/${user.uid}`}
-                      className="block group"
-                    >
-                      <div className="flex items-center space-x-3">
-                        {user.profilePicture ? (
-                          <img
-                            src={user.profilePicture}
-                            alt={user.username}
-                            className="h-10 w-10 rounded-full"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <UserIcon className="h-6 w-6 text-gray-400" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-indigo-600">
-                            {user.username}
-                          </p>
-                          {user.bio && (
-                            <p className="text-sm text-gray-500 truncate">
-                              {user.bio}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                    
-                    <div className="mt-4">
-                      <FollowButton targetUserId={user.uid} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {loading && (
-            <div className="flex justify-center mt-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
-            </div>
-          )}
-
-          {!loading && hasMore && users.length > 0 && (
-            <div className="flex justify-center mt-8">
-              <button
-                onClick={loadMore}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Load More
-              </button>
-            </div>
-          )}
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">
+          {isAllFriendsMode ? 'All Friends' : 'Discover Users'}
+        </h1>
       </div>
+
+      <div className="relative mb-6">
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+        </div>
+        <input
+          type="text"
+          className="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+          placeholder={isAllFriendsMode ? "Search friends..." : "Search users..."}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+
+      {error && (
+        <div className="rounded-md bg-red-50 p-4 mb-6">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">{error}</h3>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex justify-center my-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
+      ) : filteredUsers.length === 0 ? (
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium text-gray-900">
+            {searchQuery 
+              ? 'No users found matching your search'
+              : isAllFriendsMode
+                ? 'No friends yet'
+                : 'No users found'
+            }
+          </h3>
+          <p className="mt-2 text-sm text-gray-500">
+            {isAllFriendsMode
+              ? 'Start following other users to see them here.'
+              : 'Try adjusting your search or check back later.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredUsers.map(user => (
+            <UserCard 
+              key={user.id} 
+              user={user}
+              showFamilyBadge={user.familyMembers?.includes(user.id)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,12 +1,35 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon, ArrowRightOnRectangleIcon, UsersIcon, ShareIcon, ChartBarIcon, UserGroupIcon, MagnifyingGlassIcon, BellIcon } from '@heroicons/react/24/outline';
+import { BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon, ArrowRightOnRectangleIcon, UsersIcon, ShareIcon, ChartBarIcon, UserGroupIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { BellIcon } from '@heroicons/react/24/solid';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import type { ForwardRefExoticComponent, SVGProps, RefAttributes } from 'react';
+
+type HeroIcon = ForwardRefExoticComponent<Omit<SVGProps<SVGSVGElement>, "ref"> & { title?: string | undefined; titleId?: string | undefined; } & RefAttributes<SVGSVGElement>>;
+
+interface DropdownItem {
+  path: string;
+  label: string;
+  icon: HeroIcon;
+  onClick?: () => void;
+}
+
+interface NavItem {
+  path: string;
+  label?: string;
+  icon: HeroIcon;
+  dropdownItems?: DropdownItem[];
+  iconClassName?: string;
+  badge?: number;
+  srLabel?: string;
+}
 
 const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { unreadCount } = useNotifications();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
 
@@ -45,27 +68,46 @@ const Navigation = () => {
     }
   };
 
-  const navItems = [
-    { path: '/app/tasting-notes', label: 'Notes', icon: BookOpenIcon },
+  const navItems: NavItem[] = [
+    { 
+      path: '/app/create-note', 
+      label: 'Note', 
+      icon: PlusIcon,
+      iconClassName: 'bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4 py-2 shadow-sm transition-colors duration-150 ease-in-out flex items-center'
+    },
+    { 
+      path: '/app/tasting-notes', 
+      label: 'Notes', 
+      icon: BookOpenIcon,
+      dropdownItems: [
+        { path: '/app/tasting-notes', label: 'My notes', icon: BookOpenIcon },
+        { path: '/app/shared-with-me', label: 'Shared notes', icon: ShareIcon },
+      ]
+    },
     { 
       path: '/app/friends', 
       label: 'Friends', 
       icon: UsersIcon,
       dropdownItems: [
-        { path: '/app/shared-with-me', label: 'Shared notes', icon: ShareIcon },
+        { path: '/app/friends', label: 'All Friends', icon: UsersIcon },
         { path: '/app/activity', label: 'Activity', icon: ChartBarIcon },
         { path: '/app/family', label: 'Family', icon: UserGroupIcon },
         { path: '/app/discover', label: 'Find users', icon: MagnifyingGlassIcon },
       ]
     },
-    { path: '/app/create-note', label: 'Create', icon: PlusIcon },
+    { 
+      path: '/app/notifications', 
+      icon: BellIcon,
+      iconClassName: unreadCount > 0 ? 'text-red-600' : 'text-gray-500',
+      badge: unreadCount,
+      srLabel: 'Notifications'
+    },
     { 
       path: '/app/profile/edit', 
-      label: 'Profile', 
       icon: UserIcon,
       dropdownItems: [
-        { path: '/app/profile/edit', label: 'Profile', icon: UserIcon },
-        { path: '/app/notifications', label: 'Notifications', icon: BellIcon },
+        { path: '/app/users/me', label: 'View Profile', icon: UserIcon },
+        { path: '/app/profile/edit', label: 'Edit Profile', icon: UserIcon },
         { path: '#', label: 'Logout', icon: ArrowRightOnRectangleIcon, onClick: handleSignOut },
       ]
     },
@@ -133,7 +175,7 @@ const Navigation = () => {
                                   key={dropdownItem.path}
                                   onClick={() => {
                                     setOpenDropdowns([]);
-                                    dropdownItem.onClick();
+                                    dropdownItem.onClick?.();
                                   }}
                                   className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                                 >
@@ -165,12 +207,23 @@ const Navigation = () => {
                       to={item.path}
                       className={`inline-flex items-center px-1 pt-1 text-sm font-medium relative ${
                         isActive(item.path)
-                          ? 'text-blue-600 border-b-2 border-blue-600'
-                          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? `${item.iconClassName || ''} border-b-2 border-blue-600`
+                          : `${item.iconClassName || ''} hover:text-gray-700 hover:border-gray-300`
                       }`}
                     >
-                      <Icon className="h-5 w-5 mr-1" aria-hidden="true" />
+                      <Icon 
+                        className={`h-5 w-5 ${item.label ? 'mr-1' : ''}`} 
+                        aria-hidden="true" 
+                      />
                       {item.label}
+                      {item.srLabel && (
+                        <span className="sr-only">{item.srLabel}</span>
+                      )}
+                      {item.badge && item.badge > 0 && (
+                        <span className="absolute -top-1 -right-1 block h-4 w-4 transform -translate-y-1/2 translate-x-1/2 rounded-full bg-red-600 text-white text-xs flex items-center justify-center">
+                          {item.badge > 9 ? '9+' : item.badge}
+                        </span>
+                      )}
                     </Link>
                   )}
                 </div>
@@ -209,7 +262,7 @@ const Navigation = () => {
                                   key={dropdownItem.path}
                                   onClick={() => {
                                     setIsMobileMenuOpen(false);
-                                    dropdownItem.onClick();
+                                    dropdownItem.onClick?.();
                                   }}
                                   className="flex w-full items-center px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                                 >
@@ -240,13 +293,24 @@ const Navigation = () => {
                         to={item.path}
                         className={`flex items-center px-3 py-2 text-base font-medium relative ${
                           isActive(item.path)
-                            ? 'bg-blue-50 text-blue-600'
-                            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                            ? `${item.iconClassName || ''} bg-blue-50`
+                            : `${item.iconClassName || ''} hover:bg-gray-50 hover:text-gray-700`
                         }`}
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
-                        <Icon className="h-5 w-5 mr-3" aria-hidden="true" />
+                        <Icon 
+                          className={`h-5 w-5 ${item.label ? 'mr-3' : ''}`} 
+                          aria-hidden="true" 
+                        />
                         {item.label}
+                        {item.srLabel && (
+                          <span className="sr-only">{item.srLabel}</span>
+                        )}
+                        {item.badge && item.badge > 0 && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 block h-5 w-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center">
+                            {item.badge > 9 ? '9+' : item.badge}
+                          </span>
+                        )}
                       </Link>
                     )}
                   </div>

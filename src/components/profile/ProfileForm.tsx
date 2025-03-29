@@ -5,6 +5,7 @@ import { ProfileFormData, DIETARY_PREFERENCES_OPTIONS, DEFAULT_USER_SETTINGS } f
 import { DietaryPreferences } from './DietaryPreferences';
 import { Allergies } from './Allergies';
 import { PrivacySettings } from './PrivacySettings';
+import { LinkIcon } from '@heroicons/react/24/outline';
 
 interface ProfileFormProps {
   initialData?: Partial<ProfileFormData>;
@@ -30,6 +31,19 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
+
+  const handleCopyProfileLink = async () => {
+    if (!user) return;
+    const profileUrl = `${window.location.origin}/app/users/${user.uid}`;
+    try {
+      await navigator.clipboard.writeText(profileUrl);
+      setShowCopiedToast(true);
+      setTimeout(() => setShowCopiedToast(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy profile link:', err);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -125,9 +139,19 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Username */}
       <div>
-        <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-          Username
-        </label>
+        <div className="flex items-center justify-between mb-1">
+          <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+            Username
+          </label>
+          <button
+            type="button"
+            onClick={handleCopyProfileLink}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <LinkIcon className="h-4 w-4 mr-1" />
+            Share Profile
+          </button>
+        </div>
         <input
           type="text"
           id="username"
@@ -142,6 +166,13 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
           <p className="mt-1 text-sm text-red-600">{errors.username}</p>
         )}
       </div>
+
+      {/* Toast notification for copied link */}
+      {showCopiedToast && (
+        <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg">
+          Profile link copied to clipboard!
+        </div>
+      )}
 
       {/* Bio */}
       <div>

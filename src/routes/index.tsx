@@ -12,10 +12,13 @@ import Profile from '../pages/Profile';
 import Layout from '../components/Layout';
 import DiscoverUsers from '../pages/DiscoverUsers';
 import { UserProfileView } from '../components/profile/UserProfileView';
+import { MyProfileView } from '../components/profile/MyProfileView';
 import { useParams } from 'react-router-dom';
 import { SharedWithMeNotes } from '../components/notes/SharedWithMeNotes';
 import ActivityFeedPage from '../pages/ActivityFeed';
 import NotificationsPage from '../pages/Notifications';
+import FriendsPage from '../pages/FriendsPage';
+import FamilyPage from '../pages/FamilyPage';
 
 // Wrapper component to pass userId from URL params
 const UserProfileViewWrapper = () => {
@@ -65,8 +68,12 @@ export const router = createBrowserRouter([
         element: <ActivityFeedPage />
       },
       {
+        path: 'friends',
+        element: <FriendsPage />
+      },
+      {
         path: 'family',
-        element: <DiscoverUsers />
+        element: <FamilyPage />
       },
       {
         path: 'discover',
@@ -87,6 +94,10 @@ export const router = createBrowserRouter([
       {
         path: 'profile/edit',
         element: <Profile />
+      },
+      {
+        path: 'users/me',
+        element: <MyProfileView />
       },
       {
         path: 'users/:userId',

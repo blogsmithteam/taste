@@ -5,7 +5,6 @@ import { Tab } from '@headlessui/react';
 import { CheckIcon, TrashIcon, BellIcon, BellSlashIcon } from '@heroicons/react/24/outline';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Notification, NotificationType } from '../types/notifications';
-import { TestNotificationButton } from '../components/notifications/TestNotificationButton';
 
 type NotificationFilter = NotificationType | 'all';
 
@@ -101,7 +100,6 @@ export const NotificationsPage: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
         <div className="flex items-center space-x-4">
-          <TestNotificationButton />
           <button
             onClick={() => setShowUnreadOnly(!showUnreadOnly)}
             className={`inline-flex items-center px-3 py-2 border rounded-md text-sm font-medium ${

@@ -20,6 +20,13 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId));
     }
     
+    function isFamilyMember(userId) {
+      return isAuthenticated() && (
+        userId in resource.data.familyMembers ||
+        request.auth.uid in resource.data.familyMembers
+      );
+    }
+    
     function isPublic() {
       return 'visibility' in resource.data && resource.data.visibility == 'public';
     }
@@ -46,7 +53,8 @@ service cloud.firestore {
         data.email.matches('^[^@]+@[^@]+\\.[^@]+$') &&
         'settings' in data &&
         'isPrivate' in data.settings &&
-        data.settings.isPrivate is bool;
+        data.settings.isPrivate is bool &&
+        (!('familyMembers' in data) || data.familyMembers is list);
     }
 
     function isValidPartialUpdate(data) {
@@ -94,7 +102,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         isOwner(userId) || 
         !isPrivateProfile() ||
-        (isPrivateProfile() && isFriend(userId))
+        (isPrivateProfile() && isFriend(userId)) ||
+        (isPrivateProfile() && isFamilyMember(userId))
       );
       
       allow create: if isAuthenticated() && isValidUserData(request.resource.data);
@@ -102,31 +111,16 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         // Allow users to update their own profile
         (isOwner(userId) && isValidPartialUpdate(request.resource.data)) ||
-        // Allow follow/unfollow operations
+        // Allow family member operations
         (
-          // Only allow updating followers and updatedAt fields
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'updatedAt']) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['familyMembers', 'updatedAt']) &&
           (
-            // Adding to followers array
-            (request.resource.data.followers.size() == resource.data.followers.size() + 1 &&
-             request.resource.data.followers.removeAll(resource.data.followers).size() == 1 &&
-             request.resource.data.followers.removeAll(resource.data.followers)[0] == request.auth.uid) ||
-            // Removing from followers array
-            (request.resource.data.followers.size() == resource.data.followers.size() - 1 &&
-             resource.data.followers.removeAll(request.resource.data.followers).size() == 1 &&
-             resource.data.followers.removeAll(request.resource.data.followers)[0] == request.auth.uid)
-          )
-        ) ||
-        // Allow updating own following list
-        (isOwner(userId) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following', 'updatedAt']) &&
-          (
-            // Adding to following array
-            (request.resource.data.following.size() == resource.data.following.size() + 1 &&
-             request.resource.data.following.removeAll(resource.data.following).size() == 1) ||
-            // Removing from following array
-            (request.resource.data.following.size() == resource.data.following.size() - 1 &&
-             resource.data.following.removeAll(request.resource.data.following).size() == 1)
+            // Adding to family members array
+            (request.resource.data.familyMembers.size() == resource.data.familyMembers.size() + 1 &&
+             request.resource.data.familyMembers.removeAll(resource.data.familyMembers).size() == 1) ||
+            // Removing from family members array
+            (request.resource.data.familyMembers.size() == resource.data.familyMembers.size() - 1 &&
+             resource.data.familyMembers.removeAll(request.resource.data.familyMembers).size() == 1)
           )
         )
       );
@@ -150,6 +144,7 @@ service cloud.firestore {
         isNoteOwner() || 
         isPublic() || 
         (isFriendsOnly() && isFriend(resource.data.userId)) ||
+        isFamilyMember(resource.data.userId) ||
         isSharedWithUser()
       );
       allow create: if isAuthenticated();

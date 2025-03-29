@@ -1,36 +1,37 @@
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, FieldValue, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { UserProfile, ProfileFormData, DEFAULT_USER_SETTINGS } from '../types/user';
+import { User, ProfileFormData, DEFAULT_USER_SETTINGS } from '../types/user';
 import { activityService } from './activity';
 import { notificationsService } from './notifications';
-import { User, IdTokenResult } from 'firebase/auth';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 class UserService {
   async createUserProfile(uid: string, email: string, username: string): Promise<void> {
     const userRef = doc(db, 'users', uid);
     const timestamp = serverTimestamp();
-    const newUser: Omit<UserProfile, 'createdAt' | 'updatedAt'> & {
+    const newUser: Omit<User, 'id' | 'createdAt' | 'updatedAt'> & {
       createdAt: FieldValue;
       updatedAt: FieldValue;
     } = {
-      uid,
       username,
       email,
-      profilePicture: '',
+      photoURL: '',
       bio: '',
       dietaryPreferences: [],
       allergies: [],
       followers: [],
       following: [],
+      familyMembers: [],
+      settings: DEFAULT_USER_SETTINGS,
       createdAt: timestamp,
-      updatedAt: timestamp,
-      settings: DEFAULT_USER_SETTINGS
+      updatedAt: timestamp
     };
 
     await setDoc(userRef, newUser);
   }
 
-  async getUserProfile(uid: string): Promise<UserProfile | null> {
+  async getUserProfile(uid: string): Promise<User | null> {
     const userRef = doc(db, 'users', uid);
     const userDoc = await getDoc(userRef);
 
@@ -38,7 +39,10 @@ class UserService {
       return null;
     }
 
-    return userDoc.data() as UserProfile;
+    return {
+      id: userDoc.id,
+      ...userDoc.data()
+    } as User;
   }
 
   async updateUserProfile(uid: string, data: Partial<ProfileFormData>): Promise<void> {
@@ -46,11 +50,9 @@ class UserService {
     const userDoc = await getDoc(userRef);
 
     if (!userDoc.exists()) {
-      // If the profile doesn't exist, create it first
-      await this.createUserProfile(uid, data.username || uid, data.username || 'User');
+      await this.createUserProfile(uid, data.email || uid, data.username || 'User');
     }
 
-    // Now update with the new data
     await updateDoc(userRef, {
       ...data,
       updatedAt: serverTimestamp()
@@ -67,22 +69,23 @@ class UserService {
     if (!currentUserDoc.exists()) {
       throw new Error('Current user not found');
     }
-    const currentUser = currentUserDoc.data() as UserProfile;
+    const currentUser = currentUserDoc.data() as User;
 
-    // Create a temporary User object for activity service
-    const tempUser: User = {
+    // Create a temporary Firebase User object for activity service
+    const tempUser: FirebaseUser = {
       uid: currentUserId,
-      displayName: currentUser.username,
-      photoURL: currentUser.profilePicture || null,
       email: currentUser.email,
+      displayName: currentUser.username,
+      photoURL: currentUser.photoURL || null,
       emailVerified: true,
       isAnonymous: false,
-      metadata: {},
+      metadata: {
+        creationTime: String(currentUser.createdAt),
+        lastSignInTime: String(currentUser.updatedAt)
+      },
       providerData: [],
       refreshToken: '',
       tenantId: null,
-      phoneNumber: null,
-      providerId: 'firebase',
       delete: async () => {},
       getIdToken: async () => '',
       getIdTokenResult: async () => ({
@@ -93,7 +96,7 @@ class UserService {
         issuedAtTime: '',
         expirationTime: '',
         signInSecondFactor: null
-      } as IdTokenResult),
+      }),
       reload: async () => {},
       toJSON: () => ({})
     };
@@ -115,7 +118,7 @@ class UserService {
         type: 'follow',
         senderId: currentUserId,
         senderUsername: currentUser.username || 'Unknown User',
-        senderProfilePicture: currentUser.profilePicture,
+        senderProfilePicture: currentUser.photoURL,
         recipientId: targetUserId
       })
     ]);
@@ -138,19 +141,16 @@ class UserService {
       throw new Error('Current user not found');
     }
 
-    const userData = currentUserDoc.data() as UserProfile;
-    if (!userData.following.includes(targetUserId)) {
+    const userData = currentUserDoc.data() as User;
+    if (!userData.following?.includes(targetUserId)) {
       throw new Error('Not following this user');
     }
 
-    // Update both users atomically
     await Promise.all([
-      // Update current user's following list
       updateDoc(currentUserRef, {
         following: arrayRemove(targetUserId),
         updatedAt: timestamp
       }),
-      // Update target user's followers list
       updateDoc(targetUserRef, {
         followers: arrayRemove(currentUserId),
         updatedAt: timestamp
@@ -164,17 +164,17 @@ class UserService {
       return false;
     }
 
-    const userData = currentUserDoc.data() as UserProfile;
-    return userData.following.includes(targetUserId);
+    const userData = currentUserDoc.data() as User;
+    return userData.following?.includes(targetUserId) || false;
   }
 
-  async getFollowingProfiles(userId: string): Promise<UserProfile[]> {
+  async getFollowingProfiles(userId: string): Promise<User[]> {
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (!userDoc.exists()) {
       throw new Error('User not found');
     }
 
-    const userData = userDoc.data() as UserProfile;
+    const userData = userDoc.data() as User;
     const followingIds = userData.following;
 
     if (!followingIds.length) {
@@ -186,14 +186,14 @@ class UserService {
       followingIds.map(async (followingId) => {
         const followingDoc = await getDoc(doc(db, 'users', followingId));
         if (followingDoc.exists()) {
-          return { ...followingDoc.data(), uid: followingDoc.id } as UserProfile;
+          return { ...followingDoc.data(), uid: followingDoc.id } as User;
         }
         return null;
       })
     );
 
     // Filter out any null values (users that weren't found)
-    return followingProfiles.filter((profile): profile is UserProfile => profile !== null);
+    return followingProfiles.filter((profile): profile is User => profile !== null);
   }
 
   async deleteUser(userId: string): Promise<void> {
@@ -210,6 +210,116 @@ class UserService {
     } catch (error) {
       console.error('Error deleting user:', error);
       throw new Error('Failed to delete user');
+    }
+  }
+
+  async getFollowing(userId: string): Promise<User[]> {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) throw new Error('User not found');
+      
+      const following = userDoc.data().following || [];
+      if (following.length === 0) return [];
+
+      const followingUsers = await Promise.all(
+        following.map(async (followedId: string) => {
+          const userDoc = await getDoc(doc(db, 'users', followedId));
+          if (!userDoc.exists()) return null;
+          return {
+            id: userDoc.id,
+            ...userDoc.data()
+          } as User;
+        })
+      );
+
+      return followingUsers.filter((user): user is User => user !== null);
+    } catch (error) {
+      console.error('Error getting following users:', error);
+      throw error;
+    }
+  }
+
+  async getFamilyMembers(userId: string): Promise<User[]> {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) throw new Error('User not found');
+      
+      const familyMembers = userDoc.data().familyMembers || [];
+      if (familyMembers.length === 0) return [];
+
+      const familyUsers = await Promise.all(
+        familyMembers.map(async (familyId: string) => {
+          const userDoc = await getDoc(doc(db, 'users', familyId));
+          if (!userDoc.exists()) return null;
+          return {
+            id: userDoc.id,
+            ...userDoc.data()
+          } as User;
+        })
+      );
+
+      return familyUsers.filter((user): user is User => user !== null);
+    } catch (error) {
+      console.error('Error getting family members:', error);
+      throw error;
+    }
+  }
+
+  async addFamilyMember(userId: string, familyMemberId: string): Promise<void> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const familyMemberRef = doc(db, 'users', familyMemberId);
+
+      // Add each user to the other's family members list
+      await updateDoc(userRef, {
+        familyMembers: arrayUnion(familyMemberId)
+      });
+
+      await updateDoc(familyMemberRef, {
+        familyMembers: arrayUnion(userId)
+      });
+    } catch (error) {
+      console.error('Error adding family member:', error);
+      throw error;
+    }
+  }
+
+  async removeFamilyMember(userId: string, familyMemberId: string): Promise<void> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const familyMemberRef = doc(db, 'users', familyMemberId);
+
+      // Remove each user from the other's family members list
+      await updateDoc(userRef, {
+        familyMembers: arrayRemove(familyMemberId)
+      });
+
+      await updateDoc(familyMemberRef, {
+        familyMembers: arrayRemove(userId)
+      });
+    } catch (error) {
+      console.error('Error removing family member:', error);
+      throw error;
+    }
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('settings.isPrivate', '==', false)
+      );
+      
+      const querySnapshot = await getDocs(usersQuery);
+      const users = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as User[];
+
+      return users;
+    } catch (error) {
+      console.error('Error getting all users:', error);
+      throw error;
     }
   }
 }

@@ -1,39 +1,26 @@
 import { Timestamp } from 'firebase/firestore';
 
-export interface UserSettings {
-  isPrivate: boolean;
-  emailNotifications: boolean;
-  language: 'en';
-}
-
-export interface UserProfile {
-  uid: string;
+export interface User {
+  id: string;
   username: string;
   email: string;
-  profilePicture?: string;
-  bio: string;
-  dietaryPreferences: string[];
-  allergies: string[];
-  followers: string[];
-  following: string[];
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  settings: UserSettings;
+  bio?: string;
+  photoURL?: string;
+  dietaryPreferences?: string[];
+  allergies?: string[];
+  settings: {
+    isPrivate: boolean;
+    emailNotifications?: boolean;
+    language?: string;
+  };
+  following?: string[];
+  followers?: string[];
+  familyMembers?: string[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export interface ProfileFormData {
-  username: string;
-  bio: string;
-  dietaryPreferences: string[];
-  allergies: string[];
-  settings: UserSettings;
-}
-
-export const DEFAULT_USER_SETTINGS: UserSettings = {
-  isPrivate: false,
-  emailNotifications: true,
-  language: 'en'
-};
+export interface ProfileFormData extends Omit<User, 'id' | 'createdAt' | 'updatedAt'> {}
 
 export const DIETARY_PREFERENCES_OPTIONS = [
   'Vegetarian',
@@ -47,5 +34,11 @@ export const DIETARY_PREFERENCES_OPTIONS = [
   'Paleo',
   'Low-Carb',
   'Low-Fat',
-  'Other'
-]; 
+  'Low-Sodium'
+];
+
+export const DEFAULT_USER_SETTINGS = {
+  isPrivate: false,
+  emailNotifications: true,
+  language: 'en'
+}; 
