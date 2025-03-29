@@ -21,7 +21,7 @@ export interface Note {
   date: Timestamp;
   location?: Location;
   photos: string[];
-  notes: string;
+  notes?: string;
   tags: string[];
   improvements: string[];
   wouldOrderAgain: boolean;

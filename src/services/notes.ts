@@ -45,7 +45,7 @@ export interface CreateNoteData {
       longitude: number;
     };
   };
-  notes: string;
+  notes?: string;
   tags: string[];
   improvements: string[];
   wouldOrderAgain: boolean;
@@ -110,10 +110,6 @@ export const notesService = {
 
     if (!data.date) {
       throw new Error('Date is required');
-    }
-
-    if (!data.notes?.trim()) {
-      throw new Error('Notes are required');
     }
 
     if (!data.visibility) {

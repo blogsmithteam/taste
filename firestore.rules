@@ -129,6 +129,20 @@ service cloud.firestore {
 
     // Notes collection
     match /notes/{noteId} {
+      function isValidNoteData(data) {
+        let hasValidUserId = data.userId == request.auth.uid;
+        let hasValidVisibility = data.visibility in ['private', 'public', 'friends'];
+        let hasValidTimestamp = data.createdAt is timestamp && data.updatedAt is timestamp;
+        let hasValidNote = !('note' in data) || (data.note is string);
+        let hasValidSharedWith = !('sharedWith' in data) || (data.sharedWith is list);
+        
+        return hasValidUserId && 
+          hasValidVisibility && 
+          hasValidTimestamp && 
+          hasValidNote &&
+          hasValidSharedWith;
+      }
+
       allow read: if isAuthenticated() && (
         isNoteOwner() || 
         isPublic() || 
@@ -136,7 +150,7 @@ service cloud.firestore {
         isFamilyMember(resource.data.userId) ||
         isSharedWithUser()
       );
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidNoteData(request.resource.data);
       allow update: if isAuthenticated() && (
         isNoteOwner() || 
         (isSharedWithUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt']))

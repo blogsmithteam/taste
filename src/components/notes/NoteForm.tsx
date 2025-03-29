@@ -5,6 +5,7 @@ import { Button } from '../auth/shared/Button';
 import { Checkbox } from '../auth/shared/Checkbox';
 import { Autocomplete } from '../shared/Autocomplete';
 import { FoodRating } from '../shared/FoodRating';
+import { TagInput } from '../shared/TagInput';
 import { useAuth } from '../../contexts/AuthContext';
 import { notesService, CreateNoteData, UpdateNoteData } from '../../services/notes';
 import { restaurantsService } from '../../services/restaurants';
@@ -28,9 +29,9 @@ interface NoteFormData {
   recipeCreator: RecipeCreatorFormData | null;
   rating: number;
   date: string;
-  location?: {
+  location: {
     name: string;
-    address?: string;
+    address: string;
     coordinates?: {
       latitude: number;
       longitude: number;
@@ -67,42 +68,28 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
   const navigate = useNavigate();
   const { user } = useAuth();
   const [formData, setFormData] = useState<NoteFormData>({
-    type: 'restaurant',
-    title: '',
-    rating: 5,
-    date: new Date().toISOString().split('T')[0],
-    notes: '',
-    tags: [],
-    improvements: [],
-    wouldOrderAgain: true,
-    visibility: 'private',
-    photos: [],
-    recipeCreator: null
+    type: initialNote?.type || 'restaurant',
+    title: initialNote?.title || '',
+    rating: initialNote?.rating || 5,
+    date: initialNote?.date ? initialNote.date.toDate().toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    notes: initialNote?.notes || '',
+    tags: initialNote?.tags || [],
+    improvements: initialNote?.improvements || [],
+    wouldOrderAgain: initialNote?.wouldOrderAgain ?? true,
+    visibility: initialNote?.visibility || 'private',
+    photos: initialNote?.photos || [],
+    recipeCreator: null,  // Initialize as null since it's not part of the Note type
+    location: {
+      name: initialNote?.location?.name || '',
+      address: initialNote?.location?.address || '',
+      coordinates: initialNote?.location?.coordinates
+    }
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (initialNote) {
-      setFormData({
-        type: initialNote.type,
-        title: initialNote.title,
-        rating: initialNote.rating,
-        date: initialNote.date.toDate().toISOString().split('T')[0],
-        notes: initialNote.notes,
-        tags: initialNote.tags,
-        improvements: initialNote.improvements,
-        wouldOrderAgain: initialNote.wouldOrderAgain,
-        visibility: initialNote.visibility,
-        photos: initialNote.photos,
-        recipeCreator: null, // This will be set if needed
-        location: initialNote.location
-      });
-    }
-  }, [initialNote]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -129,10 +116,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
       newErrors.date = 'Date is required';
     }
 
-    if (!formData.notes.trim()) {
-      newErrors.notes = 'Notes are required';
-    }
-
     if (!formData.visibility) {
       newErrors.visibility = 'Visibility is required';
     }
@@ -150,10 +133,22 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
-    }));
+    
+    if (name === 'location.address') {
+      // Handle nested location.address update
+      setFormData(prev => ({
+        ...prev,
+        location: {
+          ...prev.location,
+          address: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+      }));
+    }
   };
 
   const handleRestaurantSelect = async (restaurant: { name: string; address?: string }) => {
@@ -388,8 +383,8 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
-      <div className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto bg-white rounded-lg p-6">
+      <div className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Type
@@ -416,7 +411,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               onChange={(value) => setFormData(prev => ({
                 ...prev,
                 location: { ...prev.location, name: value },
-                title: '',  // Clear the menu item when restaurant changes
+                title: '',
                 menuItemId: undefined
               }))}
               onSelect={handleRestaurantSelect}
@@ -425,19 +420,11 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               required
               allowNew
               newItemLabel="Add new restaurant"
-            />
-
-            <FormInput
-              label="Restaurant Address"
-              type="text"
-              name="location.address"
-              value={formData.location?.address || ''}
-              onChange={handleChange}
-              error={errors.location?.address}
+              placeholder="e.g., Luigi's Pizzeria"
             />
 
             <Autocomplete
-              label="What did you order?"
+              label="What did you get?"
               value={formData.title}
               onChange={(value) => setFormData(prev => ({ ...prev, title: value, menuItemId: undefined }))}
               onSelect={handleMenuItemSelect}
@@ -446,13 +433,34 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               required
               allowNew
               newItemLabel="Add new menu item"
-              placeholder="e.g., Margherita Pizza, Pad Thai"
+              placeholder="e.g., Margherita Pizza"
+            />
+
+            <FormInput
+              label="Restaurant Address"
+              type="text"
+              name="location.address"
+              value={formData.location.address}
+              onChange={handleChange}
+              error={errors.location?.address}
+              placeholder="Restaurant address"
             />
           </>
         )}
 
         {formData.type === 'recipe' && (
           <>
+            <FormInput
+              label="What did you make?"
+              type="text"
+              name="title"
+              required
+              value={formData.title}
+              onChange={handleChange}
+              error={errors.title}
+              placeholder="e.g., Homemade Lasagna"
+            />
+
             <Autocomplete
               label="Recipe Creator"
               value={formData.recipeCreator?.name || ''}
@@ -466,7 +474,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               required
               allowNew
               newItemLabel="Add new recipe creator"
-              placeholder="e.g., Alison Roman, NYT Cooking, Joy of Cooking"
+              placeholder="e.g., Alison Roman, NYT Cooking"
             />
 
             <div>
@@ -500,35 +508,40 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
                 placeholder="e.g., https://cooking.nytimes.com"
               />
             )}
-
-            <FormInput
-              label="What did you make?"
-              type="text"
-              name="title"
-              required
-              value={formData.title}
-              onChange={handleChange}
-              error={errors.title}
-              placeholder="e.g., Homemade Lasagna"
-            />
           </>
         )}
 
-        <FoodRating
-          value={formData.rating}
-          onChange={(value) => setFormData(prev => ({ ...prev, rating: value }))}
-          error={errors.rating}
-        />
-
-        <FormInput
-          label="Date"
-          type="date"
-          name="date"
-          required
-          value={formData.date}
-          onChange={handleChange}
-          error={errors.date}
-        />
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <FormInput
+              label="Date"
+              type="date"
+              name="date"
+              required
+              value={formData.date}
+              onChange={handleChange}
+              error={errors.date}
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Visibility
+            </label>
+            <select
+              name="visibility"
+              value={formData.visibility}
+              onChange={handleChange}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            >
+              <option value="private">Only Me</option>
+              <option value="friends">Friends</option>
+              <option value="public">Public</option>
+            </select>
+            {errors.visibility && (
+              <p className="mt-2 text-sm text-red-600">{errors.visibility}</p>
+            )}
+          </div>
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -539,6 +552,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
             rows={4}
             value={formData.notes}
             onChange={handleChange}
+            placeholder="Share your thoughts about the dish..."
             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
           {errors.notes && (
@@ -548,36 +562,41 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Visibility
+            Tags
           </label>
-          <select
-            name="visibility"
-            value={formData.visibility}
-            onChange={handleChange}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          >
-            <option value="private">Private</option>
-            <option value="friends">Friends</option>
-            <option value="public">Public</option>
-          </select>
-          {errors.visibility && (
-            <p className="mt-2 text-sm text-red-600">{errors.visibility}</p>
-          )}
+          <TagInput
+            tags={formData.tags}
+            onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
+            placeholder="e.g., Italian, Pizza, Spicy (comma separated)"
+          />
         </div>
 
-        <Checkbox
-          label="Would order again?"
-          name="wouldOrderAgain"
-          checked={formData.wouldOrderAgain}
-          onChange={handleChange}
-        />
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Rating
+            </label>
+            <FoodRating
+              value={formData.rating}
+              onChange={(value) => setFormData(prev => ({ ...prev, rating: value }))}
+              error={errors.rating}
+            />
+          </div>
+          <div className="flex items-center h-full pt-6">
+            <Checkbox
+              label="I'd order again"
+              name="wouldOrderAgain"
+              checked={formData.wouldOrderAgain}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
 
-        <div className="space-y-4">
-          <label className="block text-sm font-medium text-gray-700">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Photos
           </label>
           
-          {/* Display existing photos */}
           {formData.photos.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
               {formData.photos.map((photoUrl, index) => (
@@ -606,7 +625,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
             </div>
           )}
 
-          {/* Photo upload component */}
           <PhotoUpload
             noteId={initialNote?.id || 'temp'}
             userId={user?.uid || ''}
@@ -647,7 +665,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
         <Button
           type="button"
           variant="secondary"
-          onClick={() => navigate('/tasting-notes')}
+          onClick={() => navigate('/app/tasting-notes')}
         >
           Cancel
         </Button>
