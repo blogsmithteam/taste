@@ -7,19 +7,20 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { Notification, NotificationType } from '../types/notifications';
 import { TestNotificationButton } from '../components/notifications/TestNotificationButton';
 
-const NOTIFICATION_TYPES: { label: string; value: NotificationType | 'all' }[] = [
+type NotificationFilter = NotificationType | 'all';
+
+const NOTIFICATION_TYPES: { label: string; value: NotificationFilter }[] = [
   { label: 'All', value: 'all' },
-  { label: 'New Followers', value: 'NEW_FOLLOWER' },
-  { label: 'Shared Notes', value: 'NOTE_SHARED' },
-  { label: 'Comments', value: 'NOTE_COMMENT' },
-  { label: 'Mentions', value: 'MENTION' },
-  { label: 'Likes', value: 'LIKE' }
+  { label: 'New Followers', value: 'follow' },
+  { label: 'Shared Notes', value: 'note_shared' },
+  { label: 'Comments', value: 'note_commented' },
+  { label: 'Likes', value: 'note_liked' }
 ];
 
 export const NotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const { notifications, loading, error, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
-  const [selectedType, setSelectedType] = useState<NotificationType | 'all'>('all');
+  const [selectedType, setSelectedType] = useState<NotificationFilter>('all');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
   const filteredNotifications = notifications.filter(notification => {
@@ -35,19 +36,35 @@ export const NotificationsPage: React.FC = () => {
 
     // Navigate based on notification type
     switch (notification.type) {
-      case 'NOTE_SHARED':
-      case 'NOTE_COMMENT':
-        if (notification.data?.noteId) {
-          navigate(`/app/notes/${notification.data.noteId}`);
+      case 'note_shared':
+      case 'note_commented':
+      case 'note_liked':
+        if (notification.targetId) {
+          navigate(`/app/notes/${notification.targetId}`);
         }
         break;
-      case 'NEW_FOLLOWER':
-        if (notification.data?.followerId) {
-          navigate(`/app/users/${notification.data.followerId}`);
+      case 'follow':
+        if (notification.senderId) {
+          navigate(`/app/users/${notification.senderId}`);
         }
         break;
       default:
         break;
+    }
+  };
+
+  const getNotificationMessage = (notification: Notification): string => {
+    switch (notification.type) {
+      case 'follow':
+        return 'started following you';
+      case 'note_shared':
+        return `shared a note with you${notification.title ? `: ${notification.title}` : ''}`;
+      case 'note_commented':
+        return `commented on your note${notification.title ? `: ${notification.title}` : ''}`;
+      case 'note_liked':
+        return `liked your note${notification.title ? `: ${notification.title}` : ''}`;
+      default:
+        return '';
     }
   };
 
@@ -151,15 +168,28 @@ export const NotificationsPage: React.FC = () => {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {notification.title}
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {notification.message}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-400">
-                      {format(notification.createdAt.toDate(), 'MMM d, yyyy h:mm a')}
-                    </p>
+                    <div className="flex items-center">
+                      {notification.senderProfilePicture ? (
+                        <img
+                          src={notification.senderProfilePicture}
+                          alt={notification.senderUsername}
+                          className="h-8 w-8 rounded-full mr-3"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                          <BellIcon className="h-5 w-5 text-gray-500" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm text-gray-900">
+                          <span className="font-medium">{notification.senderUsername}</span>{' '}
+                          {getNotificationMessage(notification)}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-400">
+                          {format(notification.timestamp.toDate(), 'MMM d, yyyy h:mm a')}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   <div className="ml-4 flex items-center space-x-2">
                     {!notification.read && (

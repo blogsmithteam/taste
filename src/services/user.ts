@@ -2,6 +2,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp, FieldValue, arrayUnion
 import { db } from '../lib/firebase';
 import { UserProfile, ProfileFormData, DEFAULT_USER_SETTINGS } from '../types/user';
 import { activityService } from './activity';
+import { notificationsService } from './notifications';
 import { User, IdTokenResult } from 'firebase/auth';
 
 class UserService {
@@ -61,7 +62,7 @@ class UserService {
     const targetUserRef = doc(db, 'users', targetUserId);
     const timestamp = serverTimestamp();
 
-    // Get current user data for activity creation
+    // Get current user data for activity and notification creation
     const currentUserDoc = await getDoc(currentUserRef);
     if (!currentUserDoc.exists()) {
       throw new Error('Current user not found');
@@ -109,6 +110,13 @@ class UserService {
       activityService.createActivity(tempUser, {
         type: 'started_following',
         targetId: targetUserId
+      }),
+      notificationsService.createNotification({
+        type: 'follow',
+        senderId: currentUserId,
+        senderUsername: currentUser.username || 'Unknown User',
+        senderProfilePicture: currentUser.profilePicture,
+        recipientId: targetUserId
       })
     ]);
   }

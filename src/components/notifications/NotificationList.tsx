@@ -1,144 +1,203 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
-import { useNotifications } from '../../contexts/NotificationContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { notificationsService } from '../../services/notifications';
 import { Notification } from '../../types/notifications';
+import { format } from 'date-fns';
+import { UserIcon } from '@heroicons/react/24/outline';
 
-interface NotificationListProps {
-  onClose: () => void;
-}
-
-export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) => {
+export const NotificationList: React.FC = () => {
   const navigate = useNavigate();
-  const { notifications, loading, error, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!user) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+        const fetchedNotifications = await notificationsService.getAllNotifications(user.uid);
+        setNotifications(fetchedNotifications);
+      } catch (err) {
+        console.error('Error fetching notifications:', err);
+        setError('Failed to load notifications');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotifications();
+  }, [user]);
 
   const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.read) {
-      await markAsRead(notification.id);
-    }
+    try {
+      // Mark the notification as read
+      await notificationsService.markAsRead(notification.id);
+      
+      // Update the local state
+      setNotifications(prevNotifications =>
+        prevNotifications.map(n =>
+          n.id === notification.id ? { ...n, read: true } : n
+        )
+      );
 
-    // Navigate based on notification type
+      // Navigate based on notification type
+      switch (notification.type) {
+        case 'follow':
+          navigate(`/app/users/${notification.senderId}`);
+          break;
+        case 'note_shared':
+        case 'note_liked':
+        case 'note_commented':
+          if (notification.targetId) {
+            navigate(`/app/notes/${notification.targetId}`);
+          }
+          break;
+      }
+    } catch (err) {
+      console.error('Error handling notification click:', err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (!user) return;
+
+    try {
+      await notificationsService.markAllAsRead(user.uid);
+      setNotifications(prevNotifications =>
+        prevNotifications.map(n => ({ ...n, read: true }))
+      );
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+    }
+  };
+
+  const renderNotificationContent = (notification: Notification) => {
     switch (notification.type) {
-      case 'NOTE_SHARED':
-      case 'NOTE_COMMENT':
-        if (notification.data?.noteId) {
-          navigate(`/app/notes/${notification.data.noteId}`);
-        }
-        break;
-      case 'NEW_FOLLOWER':
-        if (notification.data?.followerId) {
-          navigate(`/app/users/${notification.data.followerId}`);
-        }
-        break;
+      case 'follow':
+        return (
+          <span>
+            started following you
+          </span>
+        );
+      case 'note_shared':
+        return (
+          <span>
+            shared a note with you:{' '}
+            <span className="font-medium text-gray-900">{notification.title}</span>
+          </span>
+        );
+      case 'note_liked':
+        return (
+          <span>
+            liked your note:{' '}
+            <span className="font-medium text-gray-900">{notification.title}</span>
+          </span>
+        );
+      case 'note_commented':
+        return (
+          <span>
+            commented on your note:{' '}
+            <span className="font-medium text-gray-900">{notification.title}</span>
+          </span>
+        );
       default:
-        break;
+        return null;
     }
-
-    onClose();
   };
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="p-4">
-          <div className="animate-pulse flex space-x-4">
-            <div className="flex-1 space-y-4 py-1">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              <div className="space-y-2">
-                <div className="h-4 bg-gray-200 rounded"></div>
-                <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="flex justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="p-4 text-red-600">
-          {error}
+      <div className="rounded-md bg-red-50 p-4">
+        <div className="flex">
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-800">Error</h3>
+            <div className="mt-2 text-sm text-red-700">
+              <p>{error}</p>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-        <h2 className="text-lg font-medium">Notifications</h2>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => markAllAsRead()}
-            className="text-sm text-gray-600 hover:text-gray-900"
-          >
-            Mark all as read
-          </button>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        </div>
+  if (notifications.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500 text-lg">
+          No notifications yet.
+        </p>
       </div>
+    );
+  }
 
-      <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-        {notifications.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">
-            No notifications
-          </div>
-        ) : (
-          notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`p-4 hover:bg-gray-50 cursor-pointer ${
-                !notification.read ? 'bg-blue-50' : ''
-              }`}
-              onClick={() => handleNotificationClick(notification)}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
-                    {notification.title}
-                  </p>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {notification.message}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-400">
-                    {format(notification.createdAt.toDate(), 'MMM d, yyyy h:mm a')}
-                  </p>
-                </div>
-                <div className="ml-4 flex items-center space-x-2">
-                  {!notification.read && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        markAsRead(notification.id);
-                      }}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      <CheckIcon className="h-4 w-4" />
-                    </button>
+  return (
+    <div className="flow-root">
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={handleMarkAllAsRead}
+          className="text-sm text-indigo-600 hover:text-indigo-900"
+        >
+          Mark all as read
+        </button>
+      </div>
+      <ul role="list" className="-mb-8">
+        {notifications.map((notification, notificationIdx) => (
+          <li key={notification.id}>
+            <div className="relative pb-8">
+              {notificationIdx !== notifications.length - 1 ? (
+                <span
+                  className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
+                  aria-hidden="true"
+                />
+              ) : null}
+              <div className="relative flex space-x-3">
+                <div>
+                  {notification.senderProfilePicture ? (
+                    <img
+                      className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center ring-8 ring-white"
+                      src={notification.senderProfilePicture}
+                      alt={notification.senderUsername}
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center ring-8 ring-white">
+                      <UserIcon className="h-5 w-5 text-gray-500" />
+                    </div>
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteNotification(notification.id);
-                    }}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
+                </div>
+                <div className={`flex min-w-0 flex-1 justify-between space-x-4 pt-1.5 ${!notification.read ? 'font-semibold' : ''}`}>
+                  <div>
+                    <button
+                      onClick={() => handleNotificationClick(notification)}
+                      className="text-sm text-gray-500 hover:text-indigo-600"
+                    >
+                      <span className="font-medium text-gray-900">
+                        {notification.senderUsername}
+                      </span>{' '}
+                      {renderNotificationContent(notification)}
+                    </button>
+                  </div>
+                  <div className="whitespace-nowrap text-right text-sm text-gray-500">
+                    {format(notification.timestamp.toDate(), 'MMM d, yyyy')}
+                  </div>
                 </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }; 

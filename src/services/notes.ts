@@ -2,6 +2,7 @@ import { collection, addDoc, Timestamp, serverTimestamp, query, where, getDocs, 
 import { db } from '../lib/firebase';
 import { User } from 'firebase/auth';
 import { activityService } from './activity';
+import { notificationsService } from './notifications';
 
 export interface Note {
   id: string;
@@ -571,6 +572,7 @@ export const notesService = {
       throw new Error('You do not have permission to update this note');
     }
 
+    // Only include the fields we want to update
     const updateData = {
       visibility,
       sharedWith,
@@ -578,10 +580,45 @@ export const notesService = {
     };
 
     try {
-      await updateDoc(noteRef, updateData);
+      // Get the current user's data for notification
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+      const userData = userDoc.data();
+
+      // Find new users who were added to sharedWith
+      const newSharedUsers = sharedWith.filter(id => !existingNote.sharedWith.includes(id));
+
+      if (newSharedUsers.length > 0) {
+        // Create notifications for new users
+        const notificationPromises = newSharedUsers.map(recipientId => 
+          notificationsService.createNotification({
+            type: 'note_shared',
+            senderId: userId,
+            senderUsername: userData.username,
+            senderProfilePicture: userData.profilePicture,
+            recipientId,
+            targetId: noteId,
+            title: existingNote.title
+          })
+        );
+
+        // Update note and create notifications in parallel
+        await Promise.all([
+          updateDoc(noteRef, updateData),
+          ...notificationPromises
+        ]);
+      } else {
+        // If no new users, just update the note
+        await updateDoc(noteRef, updateData);
+      }
+
+      // Return the updated note
       return {
         ...existingNote,
-        ...updateData,
+        visibility,
+        sharedWith,
         updatedAt: Timestamp.now(),
       } as Note;
     } catch (error) {

@@ -15,6 +15,7 @@ import { UserProfileView } from '../components/profile/UserProfileView';
 import { useParams } from 'react-router-dom';
 import { SharedWithMeNotes } from '../components/notes/SharedWithMeNotes';
 import ActivityFeedPage from '../pages/ActivityFeed';
+import NotificationsPage from '../pages/Notifications';
 
 // Wrapper component to pass userId from URL params
 const UserProfileViewWrapper = () => {
@@ -62,6 +63,10 @@ export const router = createBrowserRouter([
       {
         path: 'activity',
         element: <ActivityFeedPage />
+      },
+      {
+        path: 'notifications',
+        element: <NotificationsPage />
       },
       {
         path: 'create-note',

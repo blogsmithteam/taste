@@ -1,35 +1,30 @@
 import { Timestamp } from 'firebase/firestore';
 
 export type NotificationType = 
-  | 'NEW_FOLLOWER'
-  | 'NOTE_SHARED'
-  | 'NOTE_COMMENT'
-  | 'MENTION'
-  | 'LIKE';
+  | 'follow'
+  | 'note_shared'
+  | 'note_liked'
+  | 'note_commented';
 
 export interface Notification {
   id: string;
-  userId: string;
   type: NotificationType;
-  title: string;
-  message: string;
+  senderId: string;
+  senderUsername: string;
+  senderProfilePicture?: string;
+  recipientId: string;
+  timestamp: Timestamp;
   read: boolean;
-  createdAt: Timestamp;
-  data?: {
-    noteId?: string;
-    followerId?: string;
-    commentId?: string;
-  };
+  targetId?: string; // ID of the note or other content being referenced
+  title?: string; // Optional title for the notification (e.g., note title)
 }
 
 export interface CreateNotificationData {
-  userId: string;
   type: NotificationType;
-  title: string;
-  message: string;
-  data?: {
-    noteId?: string;
-    followerId?: string;
-    commentId?: string;
-  };
+  senderId: string;
+  senderUsername: string;
+  senderProfilePicture?: string;
+  recipientId: string;
+  targetId?: string;
+  title?: string;
 } 

@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { HomeIcon, BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon, ArrowRightOnRectangleIcon, UsersIcon, InboxIcon, BellIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { NotificationBadge } from './notifications/NotificationBadge';
 
 const Navigation = () => {
   const location = useLocation();
@@ -26,6 +27,7 @@ const Navigation = () => {
     { path: '/app/tasting-notes', label: 'Tasting Notes', icon: BookOpenIcon },
     { path: '/app/shared-with-me', label: 'Shared with Me', icon: InboxIcon },
     { path: '/app/activity', label: 'Activity Feed', icon: BellIcon },
+    { path: '/app/notifications', label: 'Notifications', icon: BellIcon, badge: true },
     { path: '/app/create-note', label: 'Create Note', icon: PlusIcon },
     { path: '/app/discover', label: 'Discover Users', icon: UsersIcon },
     { path: '/app/profile', label: 'Profile', icon: UserIcon },
@@ -63,7 +65,7 @@ const Navigation = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
+                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium relative ${
                     isActive(item.path)
                       ? 'text-blue-600 border-b-2 border-blue-600'
                       : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -71,6 +73,7 @@ const Navigation = () => {
                 >
                   <Icon className="h-5 w-5 mr-1" aria-hidden="true" />
                   {item.label}
+                  {item.badge && <NotificationBadge />}
                 </Link>
               );
             })}
@@ -94,7 +97,7 @@ const Navigation = () => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center px-3 py-2 text-base font-medium ${
+                    className={`flex items-center px-3 py-2 text-base font-medium relative ${
                       isActive(item.path)
                         ? 'bg-blue-50 text-blue-600'
                         : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
@@ -103,6 +106,7 @@ const Navigation = () => {
                   >
                     <Icon className="h-5 w-5 mr-3" aria-hidden="true" />
                     {item.label}
+                    {item.badge && <NotificationBadge />}
                   </Link>
                 );
               })}

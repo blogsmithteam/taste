@@ -29,9 +29,9 @@ export const notificationsService = {
       const userNotificationsRef = collection(db, NOTIFICATIONS_COLLECTION);
       const q = query(
         userNotificationsRef,
-        where('userId', '==', userId),
+        where('recipientId', '==', userId),
         where('read', '==', false),
-        orderBy('createdAt', 'desc'),
+        orderBy('timestamp', 'desc'),
         limit(limitCount)
       );
 
@@ -63,8 +63,8 @@ export const notificationsService = {
       const userNotificationsRef = collection(db, NOTIFICATIONS_COLLECTION);
       const q = query(
         userNotificationsRef,
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
+        where('recipientId', '==', userId),
+        orderBy('timestamp', 'desc'),
         limit(limitCount)
       );
 
@@ -93,24 +93,35 @@ export const notificationsService = {
    */
   async createNotification(data: CreateNotificationData): Promise<Notification> {
     const notificationData = {
-      ...data,
+      type: data.type,
+      senderId: data.senderId,
+      senderUsername: data.senderUsername,
+      senderProfilePicture: data.senderProfilePicture,
+      recipientId: data.recipientId,
+      timestamp: serverTimestamp(),
       read: false,
-      createdAt: serverTimestamp()
+      targetId: data.targetId,
+      title: data.title
     };
 
-    const docRef = await addDoc(collection(db, NOTIFICATIONS_COLLECTION), notificationData);
-    
-    // Verify the notification was created
-    const doc = await getDoc(docRef);
-    if (!doc.exists()) {
+    try {
+      const docRef = await addDoc(collection(db, NOTIFICATIONS_COLLECTION), notificationData);
+      
+      // Verify the notification was created
+      const doc = await getDoc(docRef);
+      if (!doc.exists()) {
+        throw new Error('Failed to create notification');
+      }
+
+      return {
+        id: docRef.id,
+        ...notificationData,
+        timestamp: Timestamp.now()
+      } as Notification;
+    } catch (error) {
+      console.error('Error creating notification:', error);
       throw new Error('Failed to create notification');
     }
-
-    return {
-      id: docRef.id,
-      ...notificationData,
-      createdAt: Timestamp.now()
-    } as Notification;
   },
 
   /**
@@ -142,7 +153,7 @@ export const notificationsService = {
       const notificationsRef = collection(db, NOTIFICATIONS_COLLECTION);
       const q = query(
         notificationsRef,
-        where('userId', '==', userId),
+        where('recipientId', '==', userId),
         where('read', '==', false)
       );
 
