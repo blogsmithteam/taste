@@ -11,7 +11,6 @@ export interface Notification {
   type: NotificationType;
   senderId: string;
   senderUsername: string;
-  senderProfilePicture?: string;
   recipientId: string;
   timestamp: Timestamp;
   read: boolean;
@@ -23,7 +22,6 @@ export interface CreateNotificationData {
   type: NotificationType;
   senderId: string;
   senderUsername: string;
-  senderProfilePicture?: string;
   recipientId: string;
   targetId?: string;
   title?: string;

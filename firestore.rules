@@ -17,7 +17,7 @@ service cloud.firestore {
     
     function isFriend(userId) {
       return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId));
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following.hasAny([userId]);
     }
     
     function isFamilyMember(userId) {
@@ -96,6 +96,29 @@ service cloud.firestore {
         hasValidFamilyMembers;
     }
 
+    function canModifyFollowing(userId) {
+      let incomingData = request.resource.data;
+      let currentData = resource.data;
+      
+      // Allow if user is modifying their own document
+      let isOwnDocument = isOwner(userId);
+      
+      // Allow if user is being added/removed as a follower/following
+      let isFollowOperation = 
+        (incomingData.diff(currentData).affectedKeys().hasOnly(['following', 'updatedAt']) ||
+         incomingData.diff(currentData).affectedKeys().hasOnly(['followers', 'updatedAt'])) &&
+        (
+          // Adding exactly one follower/following
+          (incomingData.following.size() == currentData.following.size() + 1 ||
+           incomingData.followers.size() == currentData.followers.size() + 1) ||
+          // Removing exactly one follower/following
+          (incomingData.following.size() == currentData.following.size() - 1 ||
+           incomingData.followers.size() == currentData.followers.size() - 1)
+        );
+      
+      return isOwnDocument || isFollowOperation;
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated() && (
@@ -111,7 +134,9 @@ service cloud.firestore {
         // Allow users to update their own profile
         (isOwner(userId) && isValidPartialUpdate(request.resource.data)) ||
         // Allow family member operations
-        canModifyFamilyMembers(userId)
+        canModifyFamilyMembers(userId) ||
+        // Allow follow/unfollow operations
+        canModifyFollowing(userId)
       );
       
       allow delete: if isOwner(userId);
@@ -197,22 +222,79 @@ service cloud.firestore {
       allow create: if isAuthenticated() && 
         request.resource.data.userId == request.auth.uid &&
         isValidActivityData(request.resource.data);
+
+      allow update: if isAuthenticated() &&
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['likes', 'likedBy', 'comments']));
+    }
+
+    match /activity_comments/{commentId} {
+      allow read: if isAuthenticated() &&
+        exists(/databases/$(database)/documents/activities/$(resource.data.activityId)) &&
+        get(/databases/$(database)/documents/activities/$(resource.data.activityId)).data.userId in
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following;
+
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        isValidCommentData(request.resource.data);
+    }
+
+    function isValidActivityBasics(data) {
+      return data.type in ['note_created', 'note_updated', 'started_following'] &&
+        data.timestamp is timestamp &&
+        data.userId is string &&
+        data.targetId is string &&
+        data.username is string &&
+        data.likes is number && data.likes >= 0 &&
+        data.comments is number && data.comments >= 0 &&
+        data.likedBy is list;
+    }
+
+    function isValidActivityMetadata(data) {
+      let hasValidTitle = !('title' in data) || data.title is string;
+      let hasValidImageUrl = !('imageUrl' in data) || data.imageUrl is string;
+      let hasValidRating = !('rating' in data) || (data.rating is number && data.rating >= 0 && data.rating <= 5);
+      let hasValidTags = !('tags' in data) || (data.tags is list && data.tags.size() <= 10);
+      
+      return hasValidTitle && hasValidImageUrl && hasValidRating && hasValidTags;
+    }
+
+    function isValidActivityLocation(data) {
+      return !('location' in data) || (
+        data.location is map &&
+        'name' in data.location &&
+        data.location.name is string &&
+        (!('address' in data.location) || data.location.address is string)
+      );
+    }
+
+    function isValidActivityUserData(data) {
+      let hasValidNotes = !('notes' in data) || data.notes is string;
+      let hasValidTargetUsername = !('targetUsername' in data) || data.targetUsername is string;
+      let hasValidTargetProfilePicture = !('targetProfilePicture' in data) || data.targetProfilePicture is string;
+      
+      return hasValidNotes && hasValidTargetUsername && hasValidTargetProfilePicture;
     }
 
     function isValidActivityData(data) {
-      let hasValidType = data.type in ['note_created', 'note_updated', 'started_following'];
-      let hasValidTimestamp = data.timestamp is timestamp;
+      return isValidActivityBasics(data) &&
+        isValidActivityMetadata(data) &&
+        isValidActivityLocation(data) &&
+        isValidActivityUserData(data);
+    }
+
+    function isValidCommentData(data) {
+      let hasValidActivityId = data.activityId is string;
       let hasValidUserId = data.userId is string;
-      let hasValidTargetId = data.targetId is string;
-      let hasValidUsername = data.username is string;
-      let hasValidTitle = !('title' in data) || data.title is string;
-      
-      return hasValidType && 
-        hasValidTimestamp && 
-        hasValidUserId && 
-        hasValidTargetId && 
-        hasValidUsername &&
-        hasValidTitle;
+      let hasValidComment = data.comment is string && 
+        data.comment.size() > 0 && 
+        data.comment.size() <= 1000;
+      let hasValidTimestamp = data.timestamp is timestamp;
+
+      return hasValidActivityId &&
+        hasValidUserId &&
+        hasValidComment &&
+        hasValidTimestamp;
     }
 
     // Notifications collection

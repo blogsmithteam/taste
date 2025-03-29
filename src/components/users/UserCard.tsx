@@ -1,6 +1,8 @@
 import React from 'react';
 import { User } from '../../types/user';
 import { UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { FollowButton } from '../profile/FollowButton';
+import { useNavigate } from 'react-router-dom';
 
 interface UserCardProps {
   user: User;
@@ -13,11 +15,19 @@ export const UserCard: React.FC<UserCardProps> = ({
   showFamilyBadge = false,
   onRemove
 }) => {
+  const navigate = useNavigate();
   const hasDietaryInfo = (user.dietaryPreferences && user.dietaryPreferences.length > 0) || 
                         (user.allergies && user.allergies.length > 0);
 
+  const handleClick = () => {
+    navigate(`/app/users/${user.id}`);
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow p-6 relative">
+    <div 
+      className="bg-white rounded-lg shadow p-6 relative cursor-pointer hover:shadow-md transition-shadow duration-200"
+      onClick={handleClick}
+    >
       {onRemove && (
         <button
           onClick={(e) => {
@@ -45,15 +55,20 @@ export const UserCard: React.FC<UserCardProps> = ({
         )}
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2">
-            <p className="text-lg font-medium text-gray-900 truncate">
-              {user.username}
-            </p>
-            {showFamilyBadge && (
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
-                Family
-              </span>
-            )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <p className="text-lg font-medium text-gray-900 truncate">
+                {user.username}
+              </p>
+              {showFamilyBadge && (
+                <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                  Family
+                </span>
+              )}
+            </div>
+            <div onClick={e => e.stopPropagation()}>
+              <FollowButton targetUserId={user.id} />
+            </div>
           </div>
           
           {user.bio && (

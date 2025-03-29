@@ -86,7 +86,7 @@ export const SharedWithMeNotes: React.FC = () => {
   };
 
   const handleNoteClick = (noteId: string) => {
-    navigate(`/app/notes/${noteId}`);
+    navigate(`/app/notes/${noteId}`, { state: { from: '/app/shared-with-me' } });
   };
 
   if (!user) {

@@ -1,22 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, Timestamp, getDoc, doc, DocumentData } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
 import { db } from '../lib/firebase';
 import { format } from 'date-fns';
-import { UserIcon } from '@heroicons/react/24/outline';
+import { UserIcon, HeartIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
+import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { useUserProfile } from '../hooks/useUserProfile';
+import { activityService } from '../services/activity';
+import { getDownloadURL, ref } from 'firebase/storage';
+import { storage } from '../lib/firebase';
 
 interface Activity {
   id: string;
   userId: string;
   type: 'note_created' | 'note_updated' | 'started_following';
-  targetId: string; // ID of the note or user being acted upon
+  targetId: string;
   timestamp: Timestamp;
   username: string;
   profilePicture?: string;
-  title?: string; // For note-related activities
+  title?: string;
+  imageUrl?: string;
+  likes?: number;
+  comments?: number;
+  isLiked?: boolean;
+  // Additional fields for notes
+  rating?: number;
+  location?: {
+    name: string;
+    address?: string;
+  };
+  notes?: string;
+  tags?: string[];
+  // Fields for following activities
+  targetUsername?: string;
+  targetProfilePicture?: string;
+}
+
+interface UserData {
+  username: string;
+  photoURL?: string;
 }
 
 const BATCH_SIZE = 10; // Maximum number of users to query at once
@@ -49,13 +73,78 @@ export const ActivityFeed: React.FC = () => {
         );
 
         const snapshot = await getDocs(q);
-        const activities = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Activity[];
+        const activities = await Promise.all(
+          snapshot.docs.map(async docSnapshot => {
+            const activity = { id: docSnapshot.id, ...docSnapshot.data() } as Activity;
+            
+            // For following activities, ensure we have the target user's information
+            if (activity.type === 'started_following' && !activity.targetUsername) {
+              try {
+                const targetUserDoc = await getDoc(doc(db, 'users', activity.targetId));
+                if (targetUserDoc.exists()) {
+                  const targetUserData = targetUserDoc.data() as UserData;
+                  activity.targetUsername = targetUserData.username;
+                  activity.targetProfilePicture = targetUserData.photoURL;
+                }
+              } catch (error) {
+                console.error('Error fetching target user data:', error);
+              }
+            }
+            
+            // For note activities, fetch the associated note data
+            if ((activity.type === 'note_created' || activity.type === 'note_updated') && activity.targetId) {
+              try {
+                // First try to get the note document
+                const noteDoc = await getDoc(doc(db, 'notes', activity.targetId));
+                if (noteDoc.exists()) {
+                  const noteData = noteDoc.data();
+                  // Only include notes that should be visible to the user
+                  const isPublic = noteData.visibility === 'public';
+                  const isFriendsOnly = noteData.visibility === 'friends';
+                  const isSharedWithUser = noteData.sharedWith?.includes(user?.uid);
+                  
+                  if (isPublic || (isFriendsOnly && profile?.following.includes(noteData.userId)) || isSharedWithUser) {
+                    // Update activity with note data
+                    activity.title = noteData.title || 'Untitled Note';
+                    activity.rating = noteData.rating;
+                    activity.location = noteData.location;
+                    activity.notes = noteData.notes;
+                    activity.tags = noteData.tags;
+                    
+                    // Only try to fetch the image if we successfully got the note data
+                    if (noteData.hasImage) {
+                      try {
+                        const imageRef = ref(storage, `notes/${activity.targetId}/images/main`);
+                        const url = await getDownloadURL(imageRef);
+                        activity.imageUrl = url;
+                      } catch (imageError) {
+                        console.error('Error fetching image URL:', imageError);
+                      }
+                    }
+                    return activity;
+                  } else {
+                    // Skip this activity if we don't have access to the note
+                    return null;
+                  }
+                } else {
+                  // Skip deleted notes
+                  return null;
+                }
+              } catch (error) {
+                console.error('Error fetching note data:', error);
+                // Skip activities where we can't access the note
+                return null;
+              }
+            }
+            
+            return activity;
+          })
+        );
         
-        console.log(`Found ${activities.length} activities for batch`);
-        return activities;
+        // Filter out null activities (ones we couldn't access)
+        const filteredActivities = activities.filter(activity => activity !== null);
+        console.log(`Found ${filteredActivities.length} accessible activities for batch`);
+        return filteredActivities;
       } catch (err) {
         console.error('Error in fetchActivitiesForUserBatch:', err);
         if (err instanceof FirebaseError) {
@@ -137,22 +226,84 @@ export const ActivityFeed: React.FC = () => {
   const renderActivityContent = (activity: Activity) => {
     switch (activity.type) {
       case 'note_created':
-        return (
-          <span>
-            created a new tasting note{' '}
-            <span className="font-medium text-gray-900">{activity.title}</span>
-          </span>
-        );
       case 'note_updated':
+        const isNewNote = activity.type === 'note_created';
         return (
-          <span>
-            updated their tasting note{' '}
-            <span className="font-medium text-gray-900">{activity.title}</span>
-          </span>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <button 
+                onClick={() => handleUserClick(activity.userId)}
+                className="font-medium text-gray-900 hover:text-indigo-600"
+              >
+                {activity.username}
+              </button>
+              <span>{isNewNote ? 'shared a new tasting note' : 'updated their tasting note'}</span>
+              <span>·</span>
+              <time className="text-gray-500">{format(activity.timestamp.toDate(), 'MMM d')}</time>
+            </div>
+            <div className="bg-gray-50 rounded-lg overflow-hidden">
+              <button 
+                onClick={() => handleActivityClick(activity)}
+                className="block w-full text-left hover:bg-gray-100 transition-colors duration-200"
+              >
+                <div className="p-3">
+                  <div className="flex flex-col gap-3">
+                    {activity.imageUrl && (
+                      <div className="w-full h-48 rounded-md overflow-hidden bg-gray-50">
+                        <img 
+                          src={activity.imageUrl} 
+                          alt={activity.title}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base text-gray-900">
+                        {activity.title} {activity.location && (
+                          <span className="text-gray-600">
+                            at {activity.location.name}
+                          </span>
+                        )}
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
         );
       case 'started_following':
         return (
-          <span>started following a new user</span>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 text-sm">
+                <button 
+                  onClick={() => handleUserClick(activity.userId)}
+                  className="font-medium text-gray-900 hover:text-indigo-600"
+                >
+                  {activity.username}
+                </button>
+                <span className="text-gray-500">started following</span>
+                <button 
+                  onClick={() => handleUserClick(activity.targetId)}
+                  className="font-medium text-gray-900 hover:text-indigo-600"
+                >
+                  {activity.targetUsername}
+                </button>
+                <span>·</span>
+                <time className="text-gray-500">{format(activity.timestamp.toDate(), 'MMM d')}</time>
+              </div>
+            </div>
+            {activity.targetProfilePicture && (
+              <div className="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden">
+                <img
+                  src={activity.targetProfilePicture}
+                  alt={activity.targetUsername}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            )}
+          </div>
         );
       default:
         return null;
@@ -160,11 +311,30 @@ export const ActivityFeed: React.FC = () => {
   };
 
   const handleActivityClick = async (activity: Activity) => {
+    if (!activity.targetId) {
+      setError('Invalid note reference');
+      return;
+    }
+
     try {
       switch (activity.type) {
         case 'note_created':
         case 'note_updated':
-          navigate(`/app/notes/${activity.targetId}`);
+          try {
+            // Try to fetch the note first to check permissions
+            const noteDoc = await getDoc(doc(db, 'notes', activity.targetId));
+            if (!noteDoc.exists()) {
+              setError('This note has been deleted');
+              return;
+            }
+            navigate(`/app/notes/${activity.targetId}`, { state: { from: '/app/activity' } });
+          } catch (err) {
+            if (err instanceof FirebaseError && err.code === 'permission-denied') {
+              setError('You don\'t have permission to view this note');
+            } else {
+              setError('Failed to access the note');
+            }
+          }
           break;
         case 'started_following':
           navigate(`/app/users/${activity.targetId}`);
@@ -172,8 +342,41 @@ export const ActivityFeed: React.FC = () => {
       }
     } catch (err) {
       console.error('Navigation error:', err);
-      setError('Failed to navigate to the selected item');
+      setError(err instanceof Error ? err.message : 'Failed to navigate to the selected item');
     }
+  };
+
+  const handleUserClick = (userId: string) => {
+    navigate(`/app/users/${userId}`);
+  };
+
+  const handleLike = async (activity: Activity) => {
+    if (!user) return;
+
+    try {
+      const newIsLiked = await activityService.toggleLike(activity.id, user.uid);
+      
+      // Update the activities state
+      setActivities(prevActivities =>
+        prevActivities.map(a =>
+          a.id === activity.id
+            ? {
+                ...a,
+                likes: (a.likes || 0) + (newIsLiked ? 1 : -1),
+                isLiked: newIsLiked
+              }
+            : a
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      // Show error toast or message
+    }
+  };
+
+  const handleComment = async (activity: Activity) => {
+    // Navigate to a detailed view or open a comment modal
+    navigate(`/app/activities/${activity.id}`);
   };
 
   if (profileLoading || loading) {
@@ -221,46 +424,45 @@ export const ActivityFeed: React.FC = () => {
 
   return (
     <div className="flow-root">
-      <ul role="list" className="-mb-8">
-        {activities.map((activity, activityIdx) => (
-          <li key={activity.id}>
-            <div className="relative pb-8">
-              {activityIdx !== activities.length - 1 ? (
-                <span
-                  className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
-                  aria-hidden="true"
-                />
-              ) : null}
-              <div className="relative flex space-x-3">
-                <div>
-                  {activity.profilePicture ? (
-                    <img
-                      className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center ring-8 ring-white"
-                      src={activity.profilePicture}
-                      alt={activity.username}
-                    />
+      <ul role="list" className="space-y-4">
+        {activities.map((activity) => (
+          <li key={activity.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="p-3">
+              <div className="flex items-center gap-3 mb-2">
+                {activity.profilePicture ? (
+                  <img
+                    className="h-8 w-8 rounded-full bg-gray-400 flex-shrink-0"
+                    src={activity.profilePicture}
+                    alt={activity.username}
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                    <UserIcon className="h-5 w-5 text-gray-500" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  {renderActivityContent(activity)}
+                </div>
+              </div>
+              <div className="flex items-center gap-6 mt-2 pl-11">
+                <button
+                  onClick={() => handleLike(activity)}
+                  className="flex items-center text-gray-500 hover:text-red-500 transition-colors duration-200"
+                >
+                  {activity.isLiked ? (
+                    <HeartIconSolid className="h-4 w-4 text-red-500" />
                   ) : (
-                    <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center ring-8 ring-white">
-                      <UserIcon className="h-5 w-5 text-gray-500" />
-                    </div>
+                    <HeartIcon className="h-4 w-4" />
                   )}
-                </div>
-                <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                  <div>
-                    <button
-                      onClick={() => handleActivityClick(activity)}
-                      className="text-sm text-gray-500 hover:text-indigo-600"
-                    >
-                      <span className="font-medium text-gray-900">
-                        {activity.username}
-                      </span>{' '}
-                      {renderActivityContent(activity)}
-                    </button>
-                  </div>
-                  <div className="whitespace-nowrap text-right text-sm text-gray-500">
-                    {format(activity.timestamp.toDate(), 'MMM d, yyyy')}
-                  </div>
-                </div>
+                  <span className="ml-1.5 text-xs">{activity.likes || 0}</span>
+                </button>
+                <button
+                  onClick={() => handleComment(activity)}
+                  className="flex items-center text-gray-500 hover:text-blue-500 transition-colors duration-200"
+                >
+                  <ChatBubbleLeftIcon className="h-4 w-4" />
+                  <span className="ml-1.5 text-xs">{activity.comments || 0}</span>
+                </button>
               </div>
             </div>
           </li>

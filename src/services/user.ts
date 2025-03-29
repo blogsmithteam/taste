@@ -86,6 +86,8 @@ class UserService {
       providerData: [],
       refreshToken: '',
       tenantId: null,
+      phoneNumber: null,
+      providerId: 'firebase',
       delete: async () => {},
       getIdToken: async () => '',
       getIdTokenResult: async () => ({
@@ -101,6 +103,7 @@ class UserService {
       toJSON: () => ({})
     };
 
+    // First update the follow relationships and create activity
     await Promise.all([
       updateDoc(currentUserRef, {
         following: arrayUnion(targetUserId),
@@ -113,15 +116,21 @@ class UserService {
       activityService.createActivity(tempUser, {
         type: 'started_following',
         targetId: targetUserId
-      }),
-      notificationsService.createNotification({
+      })
+    ]);
+
+    // Then try to create notification, but don't fail if it errors
+    try {
+      await notificationsService.createNotification({
         type: 'follow',
         senderId: currentUserId,
         senderUsername: currentUser.username || 'Unknown User',
-        senderProfilePicture: currentUser.photoURL,
         recipientId: targetUserId
-      })
-    ]);
+      });
+    } catch (error) {
+      console.error('Failed to create follow notification:', error);
+      // Don't rethrow the error - we want the follow action to succeed even if notification fails
+    }
   }
 
   async unfollowUser(currentUserId: string, targetUserId: string): Promise<void> {
@@ -175,7 +184,7 @@ class UserService {
     }
 
     const userData = userDoc.data() as User;
-    const followingIds = userData.following;
+    const followingIds = userData.following || [];
 
     if (!followingIds.length) {
       return [];
@@ -186,7 +195,10 @@ class UserService {
       followingIds.map(async (followingId) => {
         const followingDoc = await getDoc(doc(db, 'users', followingId));
         if (followingDoc.exists()) {
-          return { ...followingDoc.data(), uid: followingDoc.id } as User;
+          return {
+            id: followingDoc.id,
+            ...followingDoc.data()
+          } as User;
         }
         return null;
       })

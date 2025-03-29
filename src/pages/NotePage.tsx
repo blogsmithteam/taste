@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import NoteView from '../components/notes/NoteView';
@@ -13,6 +13,7 @@ import { NoteShareDialog } from '../components/notes/NoteShareDialog';
 const NotePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +21,16 @@ const NotePage: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Get the source route from location state or default to tasting-notes
+  const sourceRoute = (location.state?.from as string) || '/app/tasting-notes';
+  const sourceRouteMap: Record<string, string> = {
+    '/app/tasting-notes': 'Notes',
+    '/app/shared-with-me': 'Shared Notes',
+    '/app/activity': 'Activity Feed',
+    '/app/notifications': 'Notifications'
+  };
+  const sourceName = sourceRouteMap[sourceRoute] || 'Notes';
 
   useEffect(() => {
     const fetchNote = async () => {
@@ -53,7 +64,7 @@ const NotePage: React.FC = () => {
 
   const handleEdit = () => {
     if (note) {
-      navigate(`/app/notes/${note.id}/edit`);
+      navigate(`/app/notes/${note.id}/edit`, { state: { from: sourceRoute } });
     }
   };
 
@@ -63,7 +74,7 @@ const NotePage: React.FC = () => {
     try {
       setIsDeleting(true);
       await notesService.deleteNote(user.uid, note.id);
-      navigate('/app/tasting-notes');
+      navigate(sourceRoute);
     } catch (err) {
       console.error('Error deleting note:', err);
       setError('Failed to delete note');
@@ -112,7 +123,7 @@ const NotePage: React.FC = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <button
-            onClick={() => navigate('/app/tasting-notes')}
+            onClick={() => navigate(sourceRoute)}
             className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
           >
             <svg
@@ -127,7 +138,7 @@ const NotePage: React.FC = () => {
                 clipRule="evenodd"
               />
             </svg>
-            Back to Notes
+            Back to {sourceName}
           </button>
         </div>
 

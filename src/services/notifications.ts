@@ -92,14 +92,19 @@ export const notificationsService = {
    * Create a new notification
    */
   async createNotification(data: CreateNotificationData): Promise<Notification> {
-    const notificationData = {
+    // Create notification data without optional fields first
+    const baseNotificationData = {
       type: data.type,
       senderId: data.senderId,
       senderUsername: data.senderUsername,
-      senderProfilePicture: data.senderProfilePicture,
       recipientId: data.recipientId,
       timestamp: serverTimestamp(),
-      read: false,
+      read: false
+    };
+
+    // Add optional fields only if they exist and are not undefined
+    const notificationData = {
+      ...baseNotificationData,
       ...(data.targetId && { targetId: data.targetId }),
       ...(data.title && { title: data.title })
     };

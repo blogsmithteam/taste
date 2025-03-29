@@ -38,6 +38,21 @@ service firebase.storage {
       return debug(message);
     }
 
+    function hasNoteAccess(noteId) {
+      let note = firestore.get(/databases/(default)/documents/notes/$(noteId)).data;
+      let isPublic = note.visibility == 'public';
+      let isFriendsOnly = note.visibility == 'friends';
+      let isSharedWithUser = note.sharedWith != null && note.sharedWith.hasAny([request.auth.uid]);
+      let userProfile = firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+      
+      return isAuthenticated() && (
+        note.userId == request.auth.uid || // Note owner
+        isPublic || // Public note
+        (isFriendsOnly && userProfile.following.hasAny([note.userId])) || // Friends only and following
+        isSharedWithUser // Explicitly shared
+      );
+    }
+
     // Profile pictures - simplified rules
     match /users/{userId}/profile/{fileName} {
       allow read: if isAuthenticated();
@@ -47,7 +62,7 @@ service firebase.storage {
 
     // Note images - enhanced with metadata validation and debugging
     match /notes/{noteId}/images/{fileName} {
-      allow read: if isAuthenticated() 
+      allow read: if hasNoteAccess(noteId)
         && debugLog("Read attempt for note image: " + noteId);
       
       allow create: if isAuthenticated() 
@@ -68,7 +83,7 @@ service firebase.storage {
 
     // Thumbnails
     match /notes/{noteId}/thumbnails/{fileName} {
-      allow read: if isAuthenticated();
+      allow read: if hasNoteAccess(noteId);
       
       allow create: if isAuthenticated() 
         && isValidThumbnail()

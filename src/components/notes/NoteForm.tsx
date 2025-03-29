@@ -383,7 +383,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto bg-white rounded-lg p-6">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
       <div className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -405,46 +405,74 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
 
         {formData.type === 'restaurant' && (
           <>
-            <Autocomplete
-              label="Restaurant Name"
-              value={formData.location?.name || ''}
-              onChange={(value) => setFormData(prev => ({
-                ...prev,
-                location: { ...prev.location, name: value },
-                title: '',
-                menuItemId: undefined
-              }))}
-              onSelect={handleRestaurantSelect}
-              searchFunction={restaurantsService.searchRestaurants}
-              error={errors.location?.name}
-              required
-              allowNew
-              newItemLabel="Add new restaurant"
-              placeholder="e.g., Luigi's Pizzeria"
-            />
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <Autocomplete
+                  label="Restaurant Name"
+                  value={formData.location?.name || ''}
+                  onChange={(value) => setFormData(prev => ({
+                    ...prev,
+                    location: { ...prev.location, name: value },
+                    title: '',
+                    menuItemId: undefined
+                  }))}
+                  onSelect={handleRestaurantSelect}
+                  searchFunction={restaurantsService.searchRestaurants}
+                  error={errors.location?.name}
+                  required
+                  allowNew
+                  newItemLabel="Add new restaurant"
+                  placeholder="e.g., Luigi's Pizzeria"
+                />
+              </div>
+              <div>
+                <Autocomplete
+                  label="What did you get?"
+                  value={formData.title}
+                  onChange={(value) => setFormData(prev => ({ ...prev, title: value, menuItemId: undefined }))}
+                  onSelect={handleMenuItemSelect}
+                  searchFunction={searchMenuItems}
+                  error={errors.title}
+                  required
+                  allowNew
+                  newItemLabel="Add new menu item"
+                  placeholder="e.g., Margherita Pizza"
+                />
+                <div className="mt-2">
+                  <Checkbox
+                    label="I'd order again"
+                    name="wouldOrderAgain"
+                    checked={formData.wouldOrderAgain}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+            </div>
 
-            <Autocomplete
-              label="What did you get?"
-              value={formData.title}
-              onChange={(value) => setFormData(prev => ({ ...prev, title: value, menuItemId: undefined }))}
-              onSelect={handleMenuItemSelect}
-              searchFunction={searchMenuItems}
-              error={errors.title}
-              required
-              allowNew
-              newItemLabel="Add new menu item"
-              placeholder="e.g., Margherita Pizza"
-            />
-
-            <FormInput
-              label="Restaurant Address"
-              type="text"
-              name="location.address"
-              value={formData.location.address}
-              onChange={handleChange}
-              error={errors.location?.address}
-              placeholder="Restaurant address"
-            />
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <FormInput
+                  label="Date"
+                  type="date"
+                  name="date"
+                  required
+                  value={formData.date}
+                  onChange={handleChange}
+                  error={errors.date}
+                />
+              </div>
+              <div>
+                <FormInput
+                  label="Address"
+                  type="text"
+                  name="location.address"
+                  value={formData.location.address}
+                  onChange={handleChange}
+                  error={errors.location?.address}
+                  placeholder="Restaurant address"
+                />
+              </div>
+            </div>
           </>
         )}
 
@@ -511,19 +539,84 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
           </>
         )}
 
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <FormInput
-              label="Date"
-              type="date"
-              name="date"
-              required
-              value={formData.date}
+        <div className="grid grid-cols-2 gap-6">
+          <div className="h-[300px] flex flex-col">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Notes
+            </label>
+            <textarea
+              name="notes"
+              value={formData.notes}
               onChange={handleChange}
-              error={errors.date}
+              placeholder="Share your thoughts about the dish..."
+              className="block w-full flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+            {errors.notes && (
+              <p className="mt-2 text-sm text-red-600">{errors.notes}</p>
+            )}
+          </div>
+
+          <div className="h-[300px] flex flex-col">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Photos
+            </label>
+            <div className="flex-1 overflow-y-auto">
+              <PhotoUpload
+                noteId={initialNote?.id || 'temp'}
+                userId={user?.uid || ''}
+                onUploadComplete={(result) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    photos: [...prev.photos, result.url]
+                  }));
+                }}
+                onError={(error) => {
+                  setSubmitError(`Failed to upload photo: ${error.message}`);
+                }}
+              />
+              {formData.photos.length > 0 && (
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  {formData.photos.map((photoUrl, index) => (
+                    <div key={photoUrl} className="relative group">
+                      <img
+                        src={photoUrl}
+                        alt={`Photo ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            photos: prev.photos.filter(url => url !== photoUrl)
+                          }));
+                        }}
+                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Rating
+            </label>
+            <FoodRating
+              value={formData.rating}
+              onChange={(value) => setFormData(prev => ({ ...prev, rating: value }))}
+              error={errors.rating}
             />
           </div>
-          <div className="flex-1">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Visibility
             </label>
@@ -545,98 +638,12 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes
-          </label>
-          <textarea
-            name="notes"
-            rows={4}
-            value={formData.notes}
-            onChange={handleChange}
-            placeholder="Share your thoughts about the dish..."
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          />
-          {errors.notes && (
-            <p className="mt-2 text-sm text-red-600">{errors.notes}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
             Tags
           </label>
           <TagInput
             tags={formData.tags}
             onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
             placeholder="e.g., Italian, Pizza, Spicy (comma separated)"
-          />
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Rating
-            </label>
-            <FoodRating
-              value={formData.rating}
-              onChange={(value) => setFormData(prev => ({ ...prev, rating: value }))}
-              error={errors.rating}
-            />
-          </div>
-          <div className="flex items-center h-full pt-6">
-            <Checkbox
-              label="I'd order again"
-              name="wouldOrderAgain"
-              checked={formData.wouldOrderAgain}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Photos
-          </label>
-          
-          {formData.photos.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
-              {formData.photos.map((photoUrl, index) => (
-                <div key={photoUrl} className="relative group">
-                  <img
-                    src={photoUrl}
-                    alt={`Photo ${index + 1}`}
-                    className="w-full h-32 object-cover rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData(prev => ({
-                        ...prev,
-                        photos: prev.photos.filter(url => url !== photoUrl)
-                      }));
-                    }}
-                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <PhotoUpload
-            noteId={initialNote?.id || 'temp'}
-            userId={user?.uid || ''}
-            onUploadComplete={(result) => {
-              setFormData(prev => ({
-                ...prev,
-                photos: [...prev.photos, result.url]
-              }));
-            }}
-            onError={(error) => {
-              setSubmitError(`Failed to upload photo: ${error.message}`);
-            }}
           />
         </div>
       </div>

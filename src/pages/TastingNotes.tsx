@@ -83,7 +83,7 @@ export const TastingNotes: React.FC = () => {
   };
 
   const handleNoteClick = (noteId: string) => {
-    navigate(`/app/notes/${noteId}`);
+    navigate(`/app/notes/${noteId}`, { state: { from: '/app/tasting-notes' } });
   };
 
   return (

@@ -54,7 +54,7 @@ export const NotificationList: React.FC = () => {
         case 'note_liked':
         case 'note_commented':
           if (notification.targetId) {
-            navigate(`/app/notes/${notification.targetId}`);
+            navigate(`/app/notes/${notification.targetId}`, { state: { from: '/app/notifications' } });
           }
           break;
       }
