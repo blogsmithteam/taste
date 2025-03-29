@@ -21,33 +21,52 @@ service cloud.firestore {
     }
     
     function isPublic() {
-      return resource.data.visibility == 'public';
+      return 'visibility' in resource.data && resource.data.visibility == 'public';
     }
     
     function isFriendsOnly() {
-      return resource.data.visibility == 'friends';
+      return 'visibility' in resource.data && resource.data.visibility == 'friends';
     }
 
     function isSharedWithUser() {
       return isAuthenticated() && 
+        'sharedWith' in resource.data && 
+        resource.data.sharedWith is list && 
         request.auth.uid in resource.data.sharedWith;
+    }
+
+    function isPrivateProfile() {
+      return 'settings' in resource.data && 
+        'isPrivate' in resource.data.settings && 
+        resource.data.settings.isPrivate == true;
     }
 
     function isValidUserData(data) {
       return data.username is string &&
         data.username.size() >= 3 &&
         data.email is string &&
-        data.email.matches('^[^@]+@[^@]+\\.[^@]+$');
+        data.email.matches('^[^@]+@[^@]+\\.[^@]+$') &&
+        'settings' in data &&
+        'isPrivate' in data.settings &&
+        data.settings.isPrivate is bool;
     }
 
     function isValidPartialUpdate(data) {
-      let hasValidUsername = !('username' in data) || (data.username is string && data.username.size() >= 3);
-      let hasValidBio = !('bio' in data) || (data.bio is string && data.bio.size() <= 500);
+      let hasValidUsername = !('username' in data) || (
+        data.username is string && 
+        data.username.size() >= 3
+      );
+      let hasValidBio = !('bio' in data) || (
+        data.bio is string && 
+        data.bio.size() <= 500
+      );
       let hasValidPreferences = !('dietaryPreferences' in data) || (
         data.dietaryPreferences is list &&
         data.dietaryPreferences.size() <= 12
       );
-      let hasValidAllergies = !('allergies' in data) || data.allergies is list;
+      let hasValidAllergies = !('allergies' in data) || (
+        data.allergies is list
+      );
       let hasValidSettings = !('settings' in data) || (
         data.settings is map &&
         (!('isPrivate' in data.settings) || data.settings.isPrivate is bool) &&
@@ -76,12 +95,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated() && (
         isOwner(userId) || 
-        !resource.data.settings.isPrivate ||
-        (resource.data.settings.isPrivate && isFriend(userId)) ||
-        (request.query.limit <= 12 && 
-         (('settings.isPrivate' in request.query.orderBy && 'username' in request.query.orderBy) || 
-          request.query.orderBy == 'username' ||
-          'email' in request.query.where))
+        !isPrivateProfile() ||
+        (isPrivateProfile() && isFriend(userId))
       );
       
       allow create: if isAuthenticated() && isValidUserData(request.resource.data);
@@ -98,27 +113,18 @@ service cloud.firestore {
              resource.data.followers.removeAll(request.resource.data.followers).size() == 1 &&
              resource.data.followers.removeAll(request.resource.data.followers)[0] == request.auth.uid)
           )
-        ) ||
-        (isOwner(userId) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following', 'updatedAt']) &&
-          (
-            (request.resource.data.following.size() == resource.data.following.size() + 1 &&
-             request.resource.data.following.removeAll(resource.data.following).size() == 1) ||
-            (request.resource.data.following.size() == resource.data.following.size() - 1 &&
-             resource.data.following.removeAll(request.resource.data.following).size() == 1)
-          )
         )
       );
       
       allow delete: if isOwner(userId);
       
       match /following/{followedId} {
-        allow read: if isAuthenticated();
+        allow read: if isAuthenticated() && isOwner(userId);
         allow write: if isOwner(userId);
       }
 
       match /followers/{followerId} {
-        allow read: if isAuthenticated();
+        allow read: if isAuthenticated() && (isOwner(userId) || isOwner(followerId));
         allow write: if isOwner(followerId);
       }
     }
@@ -132,7 +138,10 @@ service cloud.firestore {
         isSharedWithUser()
       );
       allow create: if isAuthenticated();
-      allow update: if isNoteOwner();
+      allow update: if isAuthenticated() && (
+        isNoteOwner() || 
+        (isSharedWithUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt']))
+      );
       allow delete: if isNoteOwner();
     }
 
@@ -143,16 +152,15 @@ service cloud.firestore {
         request.resource.data.name is string && 
         request.resource.data.name.size() > 0;
       allow update: if isAuthenticated();
-      allow delete: if false; // No deletion allowed
+      allow delete: if false;
 
-      // Menu items subcollection
       match /menuItems/{menuItemId} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated() && 
           request.resource.data.name is string && 
           request.resource.data.name.size() > 0;
         allow update: if isAuthenticated();
-        allow delete: if false; // No deletion allowed
+        allow delete: if false;
       }
     }
 
@@ -163,7 +171,7 @@ service cloud.firestore {
         request.resource.data.name is string && 
         request.resource.data.name.size() > 0;
       allow update: if isAuthenticated();
-      allow delete: if false; // No deletion allowed
+      allow delete: if false;
     }
 
     // Activities collection
