@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { FirebaseError } from 'firebase/app';
 import { db } from '../lib/firebase';
 import { format } from 'date-fns';
 import { UserIcon } from '@heroicons/react/24/outline';
@@ -18,6 +19,9 @@ interface Activity {
   title?: string; // For note-related activities
 }
 
+const BATCH_SIZE = 10; // Maximum number of users to query at once
+const ACTIVITIES_PER_BATCH = 20; // Number of activities to fetch per batch
+
 export const ActivityFeed: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -25,9 +29,52 @@ export const ActivityFeed: React.FC = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    const fetchActivities = async () => {
+    const fetchActivitiesForUserBatch = async (userIds: string[]) => {
+      if (!userIds.length) {
+        console.warn('Attempted to fetch activities with empty userIds array');
+        return [];
+      }
+
+      try {
+        console.log('Fetching activities for users:', userIds);
+        const activitiesRef = collection(db, 'activities');
+        const q = query(
+          activitiesRef,
+          where('userId', 'in', userIds),
+          orderBy('timestamp', 'desc'),
+          limit(ACTIVITIES_PER_BATCH)
+        );
+
+        const snapshot = await getDocs(q);
+        const activities = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Activity[];
+        
+        console.log(`Found ${activities.length} activities for batch`);
+        return activities;
+      } catch (err) {
+        console.error('Error in fetchActivitiesForUserBatch:', err);
+        if (err instanceof FirebaseError) {
+          if (err.code === 'permission-denied') {
+            throw new Error('You don\'t have permission to view these activities. Try following the users first.');
+          }
+          throw new Error(`Firebase error (${err.code}): ${err.message}`);
+        }
+        // Log the actual error for debugging
+        console.error('Unexpected error details:', {
+          error: err,
+          userIds: userIds,
+          type: err instanceof Error ? err.constructor.name : typeof err
+        });
+        throw new Error('An unexpected error occurred while fetching activities');
+      }
+    };
+
+    const fetchAllActivities = async () => {
       if (!user || !profile || !profile.following.length) {
         setActivities([]);
         setLoading(false);
@@ -38,31 +85,53 @@ export const ActivityFeed: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // Query activities collection for recent activities from followed users
-        const activitiesRef = collection(db, 'activities');
-        const q = query(
-          activitiesRef,
-          where('userId', 'in', profile.following), // Filter for followed users
-          orderBy('timestamp', 'desc'),
-          limit(20) // Show last 20 activities
+        console.log('Starting to fetch activities for', profile.following.length, 'followed users');
+        console.log('Following list:', profile.following);
+        
+        // Split following list into batches of BATCH_SIZE
+        const batches = [];
+        for (let i = 0; i < profile.following.length; i += BATCH_SIZE) {
+          batches.push(profile.following.slice(i, i + BATCH_SIZE));
+        }
+
+        console.log('Split into', batches.length, 'batches');
+
+        // Fetch activities for each batch
+        const allActivities: Activity[] = [];
+        for (const batch of batches) {
+          try {
+            const batchActivities = await fetchActivitiesForUserBatch(batch);
+            allActivities.push(...batchActivities);
+          } catch (batchError) {
+            console.error('Error fetching batch:', batchError);
+            // Instead of silently continuing, propagate permission errors
+            if (batchError instanceof Error && batchError.message.includes('permission')) {
+              setError(batchError.message);
+              setLoading(false);
+              return;
+            }
+            // Continue with other batches for non-permission errors
+            continue;
+          }
+        }
+
+        console.log('Total activities fetched:', allActivities.length);
+
+        // Sort all activities by timestamp
+        const sortedActivities = allActivities.sort((a, b) => 
+          b.timestamp.toMillis() - a.timestamp.toMillis()
         );
 
-        const snapshot = await getDocs(q);
-        const fetchedActivities = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Activity[];
-
-        setActivities(fetchedActivities);
+        setActivities(sortedActivities.slice(0, ACTIVITIES_PER_BATCH));
       } catch (err) {
-        console.error('Error fetching activities:', err);
-        setError('Failed to load activity feed');
+        console.error('Error in fetchAllActivities:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load activity feed');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchActivities();
+    fetchAllActivities();
   }, [user, profile]);
 
   const renderActivityContent = (activity: Activity) => {
@@ -90,15 +159,20 @@ export const ActivityFeed: React.FC = () => {
     }
   };
 
-  const handleActivityClick = (activity: Activity) => {
-    switch (activity.type) {
-      case 'note_created':
-      case 'note_updated':
-        navigate(`/app/notes/${activity.targetId}`);
-        break;
-      case 'started_following':
-        navigate(`/app/users/${activity.targetId}`);
-        break;
+  const handleActivityClick = async (activity: Activity) => {
+    try {
+      switch (activity.type) {
+        case 'note_created':
+        case 'note_updated':
+          navigate(`/app/notes/${activity.targetId}`);
+          break;
+        case 'started_following':
+          navigate(`/app/users/${activity.targetId}`);
+          break;
+      }
+    } catch (err) {
+      console.error('Navigation error:', err);
+      setError('Failed to navigate to the selected item');
     }
   };
 

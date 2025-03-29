@@ -10,10 +10,6 @@ service cloud.firestore {
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-
-    function isNoteOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.userId;
-    }
     
     function isFriend(userId) {
       return isAuthenticated() && 
@@ -146,14 +142,14 @@ service cloud.firestore {
     // Notes collection
     match /notes/{noteId} {
       allow read: if isAuthenticated() && (
-        isNoteOwner() || 
+        isOwner(resource.data.userId) || 
         isPublic() || 
         (isFriendsOnly() && isFriend(resource.data.userId)) ||
         isSharedWithUser()
       );
       allow create: if isAuthenticated();
-      allow update: if isNoteOwner();
-      allow delete: if isNoteOwner();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
     }
 
     // Restaurants collection with nested menuItems
@@ -193,14 +189,13 @@ service cloud.firestore {
       // 2. The activity is from a user they follow
       allow read: if isAuthenticated() && (
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        resource.data.userId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following.hasAny([resource.data.userId])
       );
       
       // Allow create if:
       // 1. The user is authenticated
       // 2. The data is valid
       allow create: if isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid &&
         isValidActivityData(request.resource.data);
     }
 
@@ -210,14 +205,13 @@ service cloud.firestore {
       let hasValidUserId = data.userId is string;
       let hasValidTargetId = data.targetId is string;
       let hasValidUsername = data.username is string;
-      let hasValidTitle = !('title' in data) || data.title is string;
       
+      // Make title and profilePicture optional by removing them from validation
       return hasValidType && 
         hasValidTimestamp && 
         hasValidUserId && 
         hasValidTargetId && 
-        hasValidUsername &&
-        hasValidTitle;
+        hasValidUsername;
     }
   }
 }

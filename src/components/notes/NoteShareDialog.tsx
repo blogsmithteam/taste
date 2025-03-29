@@ -7,6 +7,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../auth/shared/Button';
 import { FormInput } from '../auth/shared/FormInput';
 import { FriendSelector } from './FriendSelector';
+import { notificationsService } from '../../services/notifications';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 
 interface NoteShareDialogProps {
   note: Note;
@@ -72,9 +76,65 @@ export const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
   const handleSave = async () => {
     try {
       setIsLoading(true);
+      console.log('Starting share update with:', {
+        visibility,
+        sharedWith,
+        currentSharedWith: note.sharedWith || [],
+        noteId: note.id
+      });
+      
+      // Create notifications for newly added users
+      const currentSharedWith = note.sharedWith || [];
+      const newUsers = sharedWith.filter(email => !currentSharedWith.includes(email));
+      console.log('Comparing shared users:', {
+        currentUsers: currentSharedWith,
+        newSharedWith: sharedWith,
+        newUsersToNotify: newUsers
+      });
+      
       await onUpdateSharing(visibility, sharedWith);
+      console.log('Successfully updated note sharing');
+
+      if (newUsers.length > 0) {
+        // Get user documents for all new users to get their UIDs in a single query
+        console.log('Looking up UIDs for new users:', newUsers);
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('email', 'in', newUsers));
+        const querySnapshot = await getDocs(q);
+        
+        console.log('Found users:', querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          email: doc.data().email
+        })));
+
+        // Create notifications using UIDs
+        const notificationPromises = querySnapshot.docs.map(doc => {
+          console.log('Creating notification for user:', {
+            uid: doc.id,
+            email: doc.data().email,
+            noteTitle: note.title
+          });
+          return notificationsService.createNotification({
+            userId: doc.id,
+            type: 'NOTE_SHARED',
+            title: 'New Note Shared',
+            message: `${user?.displayName || 'Someone'} shared their note "${note.title}" with you`,
+            data: {
+              noteId: note.id
+            }
+          });
+        });
+
+        console.log(`Attempting to create ${notificationPromises.length} notifications...`);
+        const results = await Promise.all(notificationPromises);
+        console.log('Notification creation results:', results);
+      } else {
+        console.log('No new users to notify - all users were already shared with');
+      }
+
       onClose();
     } catch (error) {
+      console.error('Error in handleSave:', error);
       setError('Failed to update sharing settings');
     } finally {
       setIsLoading(false);

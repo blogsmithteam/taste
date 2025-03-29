@@ -20,10 +20,24 @@
       "fields": [
         {
           "fieldPath": "userId",
-          "arrayConfig": "CONTAINS"
+          "order": "ASCENDING"
         },
         {
           "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sharedWith",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "date",
           "order": "DESCENDING"
         }
       ]

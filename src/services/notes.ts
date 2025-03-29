@@ -266,10 +266,16 @@ export const notesService = {
     const q = query(collection(db, 'notes'), ...constraints);
     const snapshot = await getDocs(q);
 
-    let notes = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Note[];
+    let notes = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+      } as Note;
+    });
 
     // Apply client-side text search if needed
     if (filters?.searchTerm) {
@@ -334,10 +340,16 @@ export const notesService = {
     const q = query(collection(db, 'notes'), ...constraints);
     const snapshot = await getDocs(q);
 
-    let notes = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Note[];
+    let notes = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+      } as Note;
+    });
 
     // Apply client-side text search if needed
     if (filters?.searchTerm) {
@@ -402,10 +414,16 @@ export const notesService = {
     const q = query(collection(db, 'notes'), ...constraints);
     const snapshot = await getDocs(q);
 
-    let notes = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Note[];
+    let notes = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+      } as Note;
+    });
 
     // Apply client-side text search if needed
     if (filters?.searchTerm) {
@@ -420,7 +438,7 @@ export const notesService = {
     };
   },
 
-  async updateNote(noteId: string, userId: string, data: Partial<UpdateNoteData>): Promise<void> {
+  async updateNote(noteId: string, userId: string, data: Partial<UpdateNoteData>): Promise<Note> {
     try {
       const noteRef = doc(db, 'notes', noteId);
       const noteDoc = await getDoc(noteRef);
@@ -434,8 +452,10 @@ export const notesService = {
         throw new Error('Not authorized to update this note');
       }
 
+      // Convert date string to Timestamp if it exists in the update data
       const updateData = {
         ...data,
+        ...(data.date && { date: Timestamp.fromDate(new Date(data.date)) }),
         updatedAt: serverTimestamp()
       };
 
@@ -483,6 +503,20 @@ export const notesService = {
         targetId: noteId,
         title: noteData.title
       });
+
+      // Return the updated note
+      const updatedNoteDoc = await getDoc(noteRef);
+      const updatedData = updatedNoteDoc.data();
+      if (!updatedData) {
+        throw new Error('Failed to fetch updated note data');
+      }
+      return {
+        id: updatedNoteDoc.id,
+        ...updatedData,
+        date: updatedData.date instanceof Timestamp ? updatedData.date : Timestamp.fromDate(new Date(updatedData.date)),
+        createdAt: updatedData.createdAt,
+        updatedAt: updatedData.updatedAt || Timestamp.now()
+      } as Note;
     } catch (err) {
       console.error('Error updating note:', err);
       throw err;
@@ -621,10 +655,16 @@ export const notesService = {
       const q = query(collection(db, 'notes'), ...constraints);
       const snapshot = await getDocs(q);
 
-      let notes = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Note[];
+      let notes = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+        } as Note;
+      });
 
       // Apply client-side text search if needed
       if (filters?.searchTerm) {

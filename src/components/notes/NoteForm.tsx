@@ -191,11 +191,28 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
         if (!formData.location?.name) {
           throw new Error('Restaurant must be selected first');
         }
+        
+        // First get or create the restaurant
+        const restaurants = await restaurantsService.searchRestaurants(formData.location.name);
+        let restaurantId: string;
+        
+        if (restaurants.length > 0) {
+          restaurantId = restaurants[0].id;
+        } else {
+          // Create new restaurant
+          const newRestaurant = await restaurantsService.addRestaurant(
+            formData.location.name,
+            formData.location.address
+          );
+          restaurantId = newRestaurant.id;
+        }
+        
         const newMenuItem = await menuItemsService.addMenuItem(
           item.name,
-          formData.location.name, // Using name as ID for now
+          restaurantId,
           formData.location.name
         );
+        
         setFormData(prev => ({
           ...prev,
           title: newMenuItem.name,
@@ -344,12 +361,16 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
 
       let savedNote: Note;
       if (initialNote) {
-        savedNote = await notesService.updateNote(user.uid, {
+        savedNote = await notesService.updateNote(initialNote.id, user.uid, {
           ...formData,
-          id: initialNote.id
+          id: initialNote.id,
+          date: formData.date // The date string will be converted to Timestamp in the service
         } as UpdateNoteData);
       } else {
-        savedNote = await notesService.createNote(user.uid, formData);
+        savedNote = await notesService.createNote(user.uid, {
+          ...formData,
+          date: formData.date // The date string will be converted to Timestamp in the service
+        });
       }
 
       setSuccessMessage('Note saved successfully!');

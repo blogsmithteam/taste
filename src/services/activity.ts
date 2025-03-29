@@ -13,12 +13,18 @@ interface CreateActivityData {
 class ActivityService {
   async createActivity(user: User, data: CreateActivityData) {
     try {
+      // Ensure we have a valid user
+      if (!user || !user.uid) {
+        throw new Error('Valid user is required to create activity');
+      }
+
       const activityData = {
+        type: data.type,
+        targetId: data.targetId,
         userId: user.uid,
         username: user.displayName || 'Anonymous',
-        profilePicture: user.photoURL || null,
         timestamp: serverTimestamp(),
-        ...data
+        ...(data.title && { title: data.title }) // Only include title if it exists
       };
 
       await addDoc(collection(db, 'activities'), activityData);

@@ -11,8 +11,46 @@ interface NoteViewProps {
 }
 
 const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) => {
+  // Validate required fields
+  if (!note || typeof note !== 'object') {
+    console.error('Invalid note data:', note);
+    return (
+      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <p className="text-red-600">Error: Invalid note data</p>
+      </div>
+    );
+  }
+
+  // Ensure required fields exist with default values if missing
+  const safeNote = {
+    ...note,
+    title: note.title || 'Untitled Note',
+    type: note.type || 'restaurant',
+    rating: typeof note.rating === 'number' ? note.rating : 0,
+    date: note.date || null,
+    notes: note.notes || '',
+    tags: Array.isArray(note.tags) ? note.tags : [],
+    improvements: Array.isArray(note.improvements) ? note.improvements : [],
+    photos: Array.isArray(note.photos) ? note.photos : [],
+    wouldOrderAgain: typeof note.wouldOrderAgain === 'boolean' ? note.wouldOrderAgain : true,
+    visibility: note.visibility || 'private'
+  };
+
+  // Safely format date
+  const formatDate = (date: any) => {
+    try {
+      if (!date || !date.toDate) {
+        return 'Invalid date';
+      }
+      return format(date.toDate(), 'MMMM d, yyyy');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
+  };
+
   const renderVisibilityIcon = () => {
-    switch (note.visibility) {
+    switch (safeNote.visibility) {
       case 'private':
         return <LockClosedIcon className="h-5 w-5 text-gray-600" title="Private" />;
       case 'friends':
@@ -31,7 +69,7 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
           <StarIcon
             key={index}
             className={`h-5 w-5 ${
-              index < note.rating ? 'text-yellow-400' : 'text-gray-300'
+              index < safeNote.rating ? 'text-yellow-400' : 'text-gray-300'
             }`}
           />
         ))}
@@ -44,7 +82,7 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
       {/* Header */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold text-gray-900">{note.title}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{safeNote.title}</h1>
           <div className="flex items-center gap-4">
             {renderVisibilityIcon()}
             {onShare && (
@@ -76,35 +114,37 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
         </div>
         
         <div className="flex items-center gap-6 text-gray-600">
-          <div>{format(note.date.toDate(), 'MMMM d, yyyy')}</div>
+          <div>{formatDate(safeNote.date)}</div>
           {renderRating()}
-          <div className="text-sm">{note.type}</div>
+          <div className="text-sm">{safeNote.type}</div>
         </div>
       </div>
 
       {/* Location (if restaurant) */}
-      {note.type === 'restaurant' && note.location && (
+      {safeNote.type === 'restaurant' && safeNote.location && (
         <div className="p-6 bg-gray-50 border-b border-gray-200">
           <div className="flex items-start gap-2">
             <MapPinIcon className="h-5 w-5 text-gray-500 mt-1" />
             <div>
-              <h2 className="font-semibold text-gray-900">{note.location.name}</h2>
-              <p className="text-gray-600">{note.location.address}</p>
+              <h2 className="font-semibold text-gray-900">{safeNote.location.name || 'Unknown location'}</h2>
+              {safeNote.location.address && (
+                <p className="text-gray-600">{safeNote.location.address}</p>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {/* Photos */}
-      {note.photos && note.photos.length > 0 && (
+      {safeNote.photos.length > 0 && (
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold mb-4">Photos</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {note.photos.map((photo: string, index: number) => (
+            {safeNote.photos.map((photo: string, index: number) => (
               <img
                 key={index}
                 src={photo}
-                alt={`Photo ${index + 1} for ${note.title}`}
+                alt={`Photo ${index + 1} for ${safeNote.title}`}
                 className="rounded-lg object-cover w-full h-48"
               />
             ))}
@@ -115,14 +155,14 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
       {/* Notes */}
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-xl font-semibold mb-4">Notes</h2>
-        <p className="whitespace-pre-wrap text-gray-700">{note.notes}</p>
+        <p className="whitespace-pre-wrap text-gray-700">{safeNote.notes}</p>
       </div>
 
       {/* Tags */}
-      {note.tags && note.tags.length > 0 && (
+      {safeNote.tags.length > 0 && (
         <div className="p-6 border-b border-gray-200">
           <div className="flex flex-wrap gap-2">
-            {note.tags.map((tag: string) => (
+            {safeNote.tags.map((tag: string) => (
               <span
                 key={tag}
                 className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
@@ -135,11 +175,11 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
       )}
 
       {/* Improvements */}
-      {note.improvements && note.improvements.length > 0 && (
+      {safeNote.improvements.length > 0 && (
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold mb-4">Improvements</h2>
           <ul className="list-disc list-inside space-y-2 text-gray-700">
-            {note.improvements.map((improvement: string, index: number) => (
+            {safeNote.improvements.map((improvement: string, index: number) => (
               <li key={index}>{improvement}</li>
             ))}
           </ul>
@@ -149,11 +189,11 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
       {/* Would Order Again */}
       <div className="p-6">
         <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-          note.wouldOrderAgain
+          safeNote.wouldOrderAgain
             ? 'bg-green-100 text-green-800'
             : 'bg-red-100 text-red-800'
         }`}>
-          {note.wouldOrderAgain ? 'Would order again' : 'Would not order again'}
+          {safeNote.wouldOrderAgain ? 'Would order again' : 'Would not order again'}
         </div>
       </div>
     </article>

@@ -53,7 +53,7 @@ const NotePage: React.FC = () => {
 
   const handleEdit = () => {
     if (note) {
-      navigate(`/notes/${note.id}/edit`);
+      navigate(`/app/notes/${note.id}/edit`);
     }
   };
 
@@ -62,7 +62,7 @@ const NotePage: React.FC = () => {
 
     try {
       setIsDeleting(true);
-      await notesService.deleteNote(note.id, user.uid);
+      await notesService.deleteNote(user.uid, note.id);
       navigate('/app/tasting-notes');
     } catch (err) {
       console.error('Error deleting note:', err);
