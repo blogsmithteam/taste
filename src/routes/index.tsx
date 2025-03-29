@@ -65,8 +65,12 @@ export const router = createBrowserRouter([
         element: <ActivityFeedPage />
       },
       {
-        path: 'notifications',
-        element: <NotificationsPage />
+        path: 'family',
+        element: <DiscoverUsers />
+      },
+      {
+        path: 'discover',
+        element: <DiscoverUsers />
       },
       {
         path: 'create-note',
@@ -81,16 +85,16 @@ export const router = createBrowserRouter([
         element: <EditNote />
       },
       {
-        path: 'profile',
+        path: 'profile/edit',
         element: <Profile />
-      },
-      {
-        path: 'discover',
-        element: <DiscoverUsers />
       },
       {
         path: 'users/:userId',
         element: <UserProfileViewWrapper />
+      },
+      {
+        path: 'notifications',
+        element: <NotificationsPage />
       }
     ]
   },
