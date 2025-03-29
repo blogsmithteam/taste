@@ -124,6 +124,7 @@ class UserService {
   async unfollowUser(currentUserId: string, targetUserId: string): Promise<void> {
     const currentUserRef = doc(db, 'users', currentUserId);
     const targetUserRef = doc(db, 'users', targetUserId);
+    const timestamp = serverTimestamp();
 
     // Check if target user exists
     const targetUserDoc = await getDoc(targetUserRef);
@@ -131,7 +132,7 @@ class UserService {
       throw new Error('User not found');
     }
 
-    // Check if actually following
+    // Check if current user exists
     const currentUserDoc = await getDoc(currentUserRef);
     if (!currentUserDoc.exists()) {
       throw new Error('Current user not found');
@@ -142,17 +143,19 @@ class UserService {
       throw new Error('Not following this user');
     }
 
-    // Update current user's following list
-    await updateDoc(currentUserRef, {
-      following: arrayRemove(targetUserId),
-      updatedAt: serverTimestamp()
-    });
-
-    // Update target user's followers list
-    await updateDoc(targetUserRef, {
-      followers: arrayRemove(currentUserId),
-      updatedAt: serverTimestamp()
-    });
+    // Update both users atomically
+    await Promise.all([
+      // Update current user's following list
+      updateDoc(currentUserRef, {
+        following: arrayRemove(targetUserId),
+        updatedAt: timestamp
+      }),
+      // Update target user's followers list
+      updateDoc(targetUserRef, {
+        followers: arrayRemove(currentUserId),
+        updatedAt: timestamp
+      })
+    ]);
   }
 
   async isFollowing(currentUserId: string, targetUserId: string): Promise<boolean> {

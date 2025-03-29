@@ -30,8 +30,6 @@ service cloud.firestore {
 
     function isSharedWithUser() {
       return isAuthenticated() && 
-        'sharedWith' in resource.data && 
-        resource.data.sharedWith is list && 
         request.auth.uid in resource.data.sharedWith;
     }
 
@@ -102,16 +100,33 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidUserData(request.resource.data);
       
       allow update: if isAuthenticated() && (
+        // Allow users to update their own profile
         (isOwner(userId) && isValidPartialUpdate(request.resource.data)) ||
+        // Allow follow/unfollow operations
         (
+          // Only allow updating followers and updatedAt fields
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'updatedAt']) &&
           (
+            // Adding to followers array
             (request.resource.data.followers.size() == resource.data.followers.size() + 1 &&
              request.resource.data.followers.removeAll(resource.data.followers).size() == 1 &&
              request.resource.data.followers.removeAll(resource.data.followers)[0] == request.auth.uid) ||
+            // Removing from followers array
             (request.resource.data.followers.size() == resource.data.followers.size() - 1 &&
              resource.data.followers.removeAll(request.resource.data.followers).size() == 1 &&
              resource.data.followers.removeAll(request.resource.data.followers)[0] == request.auth.uid)
+          )
+        ) ||
+        // Allow updating own following list
+        (isOwner(userId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following', 'updatedAt']) &&
+          (
+            // Adding to following array
+            (request.resource.data.following.size() == resource.data.following.size() + 1 &&
+             request.resource.data.following.removeAll(resource.data.following).size() == 1) ||
+            // Removing from following array
+            (request.resource.data.following.size() == resource.data.following.size() - 1 &&
+             resource.data.following.removeAll(request.resource.data.following).size() == 1)
           )
         )
       );
@@ -213,7 +228,12 @@ service cloud.firestore {
         request.resource.data.senderId == request.auth.uid &&
         request.resource.data.type in ['follow', 'note_shared', 'note_liked', 'note_commented'] &&
         request.resource.data.timestamp is timestamp &&
-        request.resource.data.read is bool;
+        request.resource.data.read is bool &&
+        request.resource.data.recipientId is string &&
+        request.resource.data.senderUsername is string &&
+        (!('senderProfilePicture' in request.resource.data) || request.resource.data.senderProfilePicture is string) &&
+        (!('targetId' in request.resource.data) || request.resource.data.targetId is string) &&
+        (!('title' in request.resource.data) || request.resource.data.title is string);
       
       allow update: if isAuthenticated() && 
         resource.data.recipientId == request.auth.uid &&

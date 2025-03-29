@@ -100,8 +100,8 @@ export const notificationsService = {
       recipientId: data.recipientId,
       timestamp: serverTimestamp(),
       read: false,
-      targetId: data.targetId,
-      title: data.title
+      ...(data.targetId && { targetId: data.targetId }),
+      ...(data.title && { title: data.title })
     };
 
     try {
