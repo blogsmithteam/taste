@@ -3,10 +3,12 @@ import { NoteForm } from '../components/notes/NoteForm';
 
 const CreateNote: React.FC = () => {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Create New Note</h1>
-        <NoteForm />
+    <div className="min-h-screen bg-gradient-to-b from-[#FDF8F6] to-white pt-1">
+      <div className="container mx-auto px-2 max-w-4xl">
+        <div className="bg-white rounded shadow-sm p-2">
+          <h2 className="text-sm font-medium text-gray-900 mb-1">Create New Note</h2>
+          <NoteForm />
+        </div>
       </div>
     </div>
   );

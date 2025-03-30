@@ -383,29 +383,29 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
-      <div className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-4">
+        <div className="bg-white rounded p-3 shadow-sm border border-gray-100">
+          <label className="block text-sm font-medium text-gray-800 mb-2">
             Type
           </label>
           <select
             name="type"
             value={formData.type}
             onChange={handleChange}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className="block w-full rounded border-gray-200 shadow-sm focus:border-[#E07A5F] focus:ring-[#E07A5F] text-sm"
           >
             <option value="restaurant">Restaurant</option>
             <option value="recipe">Recipe</option>
           </select>
           {errors.type && (
-            <p className="mt-2 text-sm text-red-600">{errors.type}</p>
+            <p className="mt-1 text-xs text-red-600">{errors.type}</p>
           )}
         </div>
 
-        {formData.type === 'restaurant' && (
-          <>
-            <div className="grid grid-cols-2 gap-6">
+        {formData.type === 'restaurant' &&
+          <div className="bg-white rounded p-3 shadow-sm border border-gray-100 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Autocomplete
                   label="Restaurant Name"
@@ -449,7 +449,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <FormInput
                   label="Date"
@@ -473,11 +473,11 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
                 />
               </div>
             </div>
-          </>
-        )}
+          </div>
+        }
 
         {formData.type === 'recipe' && (
-          <>
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100 space-y-6">
             <FormInput
               label="What did you make?"
               type="text"
@@ -506,7 +506,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
             />
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-base font-semibold text-gray-800 mb-3">
                 Creator Type
               </label>
               <select
@@ -516,7 +516,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
                   ...prev,
                   recipeCreator: { ...prev.recipeCreator, type: e.target.value as RecipeCreatorType }
                 }))}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-[#E07A5F] focus:ring-[#E07A5F] text-base"
               >
                 <option value="person">Person</option>
                 <option value="website">Website/Blog</option>
@@ -536,12 +536,12 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
                 placeholder="e.g., https://cooking.nytimes.com"
               />
             )}
-          </>
+          </div>
         )}
 
-        <div className="grid grid-cols-2 gap-6">
-          <div className="h-[300px] flex flex-col">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded p-3 shadow-sm border border-gray-100 h-[150px] flex flex-col">
+            <label className="block text-sm font-medium text-gray-800 mb-2">
               Notes
             </label>
             <textarea
@@ -549,15 +549,15 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               value={formData.notes}
               onChange={handleChange}
               placeholder="Share your thoughts about the dish..."
-              className="block w-full flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="block w-full flex-1 rounded border-gray-200 shadow-sm focus:border-[#E07A5F] focus:ring-[#E07A5F] text-sm resize-none"
             />
             {errors.notes && (
-              <p className="mt-2 text-sm text-red-600">{errors.notes}</p>
+              <p className="mt-1 text-xs text-red-600">{errors.notes}</p>
             )}
           </div>
 
-          <div className="h-[300px] flex flex-col">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="bg-white rounded p-3 shadow-sm border border-gray-100 h-[150px] flex flex-col">
+            <label className="block text-sm font-medium text-gray-800 mb-2">
               Photos
             </label>
             <div className="flex-1 overflow-y-auto">
@@ -575,13 +575,13 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
                 }}
               />
               {formData.photos.length > 0 && (
-                <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-2 gap-2 mt-2">
                   {formData.photos.map((photoUrl, index) => (
                     <div key={photoUrl} className="relative group">
                       <img
                         src={photoUrl}
                         alt={`Photo ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg"
+                        className="w-full h-16 object-cover rounded shadow-sm"
                       />
                       <button
                         type="button"
@@ -591,9 +591,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
                             photos: prev.photos.filter(url => url !== photoUrl)
                           }));
                         }}
-                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
                       </button>
@@ -605,9 +605,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded p-3 shadow-sm border border-gray-100">
+            <label className="block text-sm font-medium text-gray-800 mb-2">
               Rating
             </label>
             <FoodRating
@@ -616,28 +616,28 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               error={errors.rating}
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="bg-white rounded p-3 shadow-sm border border-gray-100">
+            <label className="block text-sm font-medium text-gray-800 mb-2">
               Visibility
             </label>
             <select
               name="visibility"
               value={formData.visibility}
               onChange={handleChange}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="block w-full rounded border-gray-200 shadow-sm focus:border-[#E07A5F] focus:ring-[#E07A5F] text-sm"
             >
               <option value="private">Only Me</option>
               <option value="friends">Friends</option>
               <option value="public">Public</option>
             </select>
             {errors.visibility && (
-              <p className="mt-2 text-sm text-red-600">{errors.visibility}</p>
+              <p className="mt-1 text-xs text-red-600">{errors.visibility}</p>
             )}
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="bg-white rounded p-3 shadow-sm border border-gray-100">
+          <label className="block text-sm font-medium text-gray-800 mb-2">
             Tags
           </label>
           <TagInput
@@ -649,26 +649,26 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
       </div>
 
       {submitError && (
-        <div className="rounded-md bg-red-50 p-4">
+        <div className="rounded bg-red-50 p-2 border border-red-100">
           <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">{submitError}</h3>
+            <div className="ml-2">
+              <h3 className="text-xs font-medium text-red-800">{submitError}</h3>
             </div>
           </div>
         </div>
       )}
 
       {successMessage && (
-        <div className="rounded-md bg-green-50 p-4">
+        <div className="rounded bg-green-50 p-2 border border-green-100">
           <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-green-800">{successMessage}</h3>
+            <div className="ml-2">
+              <h3 className="text-xs font-medium text-green-800">{successMessage}</h3>
             </div>
           </div>
         </div>
       )}
 
-      <div className="flex justify-end space-x-4">
+      <div className="flex justify-end space-x-3">
         <Button
           type="button"
           variant="secondary"
@@ -679,6 +679,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
         <Button
           type="submit"
           disabled={isLoading}
+          className="bg-gradient-to-r from-[#E07A5F] to-[#81375E] hover:from-[#81375E] hover:to-[#3D405B] text-white"
         >
           {isLoading ? 'Saving...' : initialNote ? 'Save Changes' : 'Create Note'}
         </Button>

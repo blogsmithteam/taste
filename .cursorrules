@@ -1,17 +1,16 @@
 1. General Guidelines
 Focus: Provide the simplest and most effective solution without unnecessary complexity.
 
-Feature Preservation:
-⚠️ CRITICAL: Never modify or remove established features without explicit approval
-- Always analyze existing functionality before suggesting changes
-- Document and understand current feature behavior before modifications
-- Preserve existing API contracts and interfaces
-- Maintain backward compatibility unless explicitly approved for breaking changes
-- If a feature exists, extend it rather than replace it
-
 Explain Risks: Cursor should clearly warn about potential issues before suggesting changes.
 
 Warn About Dependencies: If a change impacts other files, Cursor should highlight dependencies and risks.
+
+Feature Preservation:
+- Never modify or replace existing features without explicit approval
+- Always analyze and document current functionality before suggesting changes
+- Preserve existing APIs, interfaces, and behavior patterns
+- If improvements are needed, suggest them separately without disrupting current features
+- Document and test backward compatibility for any changes
 
 2. Code Suggestions
 Avoid:
@@ -19,15 +18,13 @@ Avoid:
 - Hallucinated version numbers
 - Complex state management when simpler solutions suffice
 - Over-engineering of features
-- Modifying established features without thorough understanding
-- Breaking existing functionality
-- Changing working code without clear benefits
+- Breaking changes to established features
+- Modifications that could impact user data or existing state
 
 Version Control:
 - Validate version numbers before suggesting them
 - Source versions from official documentation (e.g., npm, MDN, framework docs)
 - Use semantic versioning for all dependencies
-- Document version compatibility with existing features
 
 Enforce Best Practices:
 - Follow React and TypeScript best practices
@@ -47,26 +44,16 @@ Limit Scope:
 - Changes should be limited to the requested file unless explicitly approved
 - Document all file dependencies in comments
 - Keep components focused and single-responsibility
-- Never modify core features without explicit approval
-- Preserve existing component interfaces
-- Maintain backward compatibility
-
-Change Protection:
-🛡️ Protected Areas (Require Explicit Approval):
-- Core feature logic
-- Established user flows
-- Data models and schemas
-- API interfaces
-- Authentication flows
-- Performance-critical code
-- Security-related code
+- Never modify core functionality without explicit confirmation
+- Preserve existing component interfaces and props
+- Maintain backward compatibility with existing data structures
 
 Require Explicit Approval:
 - Cursor should not modify related files unless confirmed
 - Database schema changes require explicit approval
 - Security rule changes require explicit approval
 - Changes to established features require explicit approval
-- API interface modifications require explicit approval
+- Modifications to core business logic require explicit approval
 - Changes affecting user data require explicit approval
 
 Warn About Cascading Effects:
@@ -126,10 +113,9 @@ Before applying changes:
 - Test integration with existing functionality
 
 Risk Levels:
-🟢 Low: No security risk, minimal impact, no effect on established features
-🟡 Medium: Possible risks, review recommended, minor impact on established features
-🔴 High: Significant security concern, manual review required, major impact on established features
-⚫ Critical: Changes to core functionality, requires extensive testing and explicit approval
+🟢 Low: No security risk, minimal impact, no effect on existing features
+🟡 Medium: Possible risks, review recommended, minimal impact on existing features
+🔴 High: Significant security concern, manual review required, or impacts existing features
 
 6. Project-Specific Rules
 Tasting Notes App Requirements:

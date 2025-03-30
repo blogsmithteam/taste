@@ -10,12 +10,14 @@ interface NoteFiltersProps {
   filters: NoteFilters;
   onFiltersChange: (filters: NoteFilters) => void;
   onReset: () => void;
+  availableTags: string[];
 }
 
 export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
   filters,
   onFiltersChange,
   onReset,
+  availableTags,
 }) => {
   const handleChange = (
     name: keyof NoteFilters,
@@ -28,43 +30,43 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Type Tabs with integrated search */}
       <div className="flex items-center gap-4">
         <div className="relative w-64">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            <MagnifyingGlassIcon className="h-5 w-5 text-taste-primary/60" />
           </div>
           <input
             type="text"
             placeholder="Search by title or notes..."
             value={filters.searchTerm || ''}
             onChange={(e) => handleChange('searchTerm', e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            className="w-full pl-10 pr-4 py-2 bg-white border border-taste-primary/20 rounded-lg placeholder:text-taste-primary/50 focus:outline-none focus:ring-2 focus:ring-taste-primary/30 text-taste-primary"
           />
         </div>
 
-        <div className="flex rounded-lg shadow-sm bg-white p-1 border border-gray-200 flex-1">
+        <div className="flex rounded-lg shadow-sm bg-white border border-taste-primary/20 p-1 flex-1">
           <button
             onClick={() => handleChange('type', undefined)}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md ${
-              !filters.type ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              !filters.type ? 'bg-taste-primary text-white' : 'text-taste-primary hover:bg-taste-primary/10'
             }`}
           >
             All
           </button>
           <button
             onClick={() => handleChange('type', 'restaurant')}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md ${
-              filters.type === 'restaurant' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filters.type === 'restaurant' ? 'bg-taste-primary text-white' : 'text-taste-primary hover:bg-taste-primary/10'
             }`}
           >
             Restaurants
           </button>
           <button
             onClick={() => handleChange('type', 'recipe')}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md ${
-              filters.type === 'recipe' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filters.type === 'recipe' ? 'bg-taste-primary text-white' : 'text-taste-primary hover:bg-taste-primary/10'
             }`}
           >
             Recipes
@@ -73,13 +75,14 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
       </div>
 
       {/* Filter Row */}
-      <div className="flex flex-wrap gap-4 items-center">
+      <div className="flex flex-wrap gap-6 items-end">
         <div className="w-40">
           <FormInput
             label="From"
             type="date"
             value={filters.dateFrom ? filters.dateFrom.toISOString().split('T')[0] : ''}
             onChange={(e) => handleChange('dateFrom', e.target.value ? new Date(e.target.value) : undefined)}
+            className="bg-white border-taste-primary/20 focus:ring-taste-primary/30 text-taste-primary"
           />
         </div>
 
@@ -89,11 +92,12 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
             type="date"
             value={filters.dateTo ? filters.dateTo.toISOString().split('T')[0] : ''}
             onChange={(e) => handleChange('dateTo', e.target.value ? new Date(e.target.value) : undefined)}
+            className="bg-white border-taste-primary/20 focus:ring-taste-primary/30 text-taste-primary"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-taste-primary mb-1.5">
             Rating
           </label>
           <FoodRating
@@ -108,11 +112,36 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
             label="Would Order Again"
             checked={filters.wouldOrderAgain || false}
             onChange={(e) => handleChange('wouldOrderAgain', e.target.checked)}
+            className="text-taste-primary"
           />
         </div>
 
-        <Button variant="secondary" onClick={onReset} className="ml-auto">
-          Reset
+        {availableTags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {availableTags.map(tag => (
+              <button
+                key={tag}
+                onClick={() => handleChange('tags', filters.tags?.includes(tag) 
+                  ? filters.tags.filter(t => t !== tag)
+                  : [...(filters.tags || []), tag]
+                )}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                  filters.tags?.includes(tag) 
+                    ? 'bg-taste-primary text-white' 
+                    : 'bg-taste-primary/10 text-taste-primary hover:bg-taste-primary hover:text-white'
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <Button
+          onClick={onReset}
+          className="ml-auto bg-taste-primary/10 text-taste-primary hover:bg-taste-primary hover:text-white transition-colors"
+        >
+          Reset Filters
         </Button>
       </div>
     </div>
