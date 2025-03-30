@@ -114,6 +114,10 @@ export const router = createBrowserRouter([
         element: <FollowingPage />
       },
       {
+        path: 'users/:userId/family',
+        element: <FamilyPage />
+      },
+      {
         path: 'notifications',
         element: <NotificationsPage />
       }

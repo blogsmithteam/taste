@@ -121,6 +121,84 @@ export class StorageService {
   }
 
   /**
+   * Uploads a profile photo for a user
+   * @param file The file to upload
+   * @param userId The ID of the user
+   * @param onProgress Optional callback for upload progress
+   * @returns Promise with the download URL and file details
+   */
+  async uploadProfilePhoto(
+    file: File,
+    userId: string,
+    onProgress?: UploadProgressCallback
+  ): Promise<PhotoUploadResult> {
+    try {
+      if (!file?.name) {
+        throw new Error('Invalid file object: missing name property');
+      }
+
+      // Generate a unique filename to prevent collisions
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `${uuidv4()}.${fileExtension}`;
+      const filePath = `users/${userId}/profile/${fileName}`;
+      
+      const storageRef = ref(this.storage, filePath);
+
+      // Set up metadata
+      const metadata: UploadMetadata = {
+        contentType: file.type,
+        customMetadata: {
+          uploadedBy: userId,
+          originalName: file.name,
+          type: 'profile'
+        }
+      };
+
+      // Start the upload with metadata
+      const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+
+      // Return a promise that resolves when the upload is complete
+      return new Promise((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            if (onProgress) {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              onProgress(progress);
+            }
+          },
+          (error: StorageError) => {
+            switch (error.code) {
+              case 'storage/unauthorized':
+                reject(new Error('Not authorized to upload profile photo'));
+                break;
+              case 'storage/canceled':
+                reject(new Error('Upload was canceled'));
+                break;
+              default:
+                reject(new Error(`Upload failed: ${error.message}`));
+            }
+          },
+          async () => {
+            try {
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve({
+                url: downloadURL,
+                path: filePath,
+                fileName: fileName
+              });
+            } catch (error) {
+              reject(new Error('Failed to get download URL'));
+            }
+          }
+        );
+      });
+    } catch (error) {
+      throw new Error(`Failed to initiate profile photo upload: ${error}`);
+    }
+  }
+
+  /**
    * Deletes a photo from storage
    * @param path The full storage path to the file
    */

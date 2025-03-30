@@ -44,9 +44,11 @@ const FollowingPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-center my-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-taste-primary"></div>
+      <div className="min-h-screen bg-[#FDF1ED]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+          <div className="flex justify-center my-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-taste-primary"></div>
+          </div>
         </div>
       </div>
     );
@@ -54,11 +56,11 @@ const FollowingPage: React.FC = () => {
 
   if (error || !profile) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="rounded-md bg-red-50 p-4 mb-6">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">{error || 'Profile not found'}</h3>
+      <div className="min-h-screen bg-[#FDF1ED]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+          <div className="bg-white/80 rounded-lg shadow-sm border border-[#E76F51]/10 p-6">
+            <div className="rounded-md bg-red-50 p-4">
+              <p className="text-sm text-red-700">{error || 'Profile not found'}</p>
             </div>
           </div>
         </div>
@@ -67,38 +69,50 @@ const FollowingPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center space-x-4 mb-6">
-        <button
-          onClick={handleBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-        >
-          <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {profile.username} is Following
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {following.length} {following.length === 1 ? 'user' : 'users'}
-          </p>
+    <div className="min-h-screen bg-[#FDF1ED]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+        <div className="mb-6">
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center text-taste-primary hover:text-taste-primary/80 transition-colors"
+          >
+            <ArrowLeftIcon className="h-5 w-5 mr-2" />
+            <span>Back to {profile.username}'s Profile</span>
+          </button>
+        </div>
+
+        <div className="bg-white/80 rounded-lg shadow-sm border border-[#E76F51]/10 p-6">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="font-serif text-5xl font-semibold text-[#E76F51] mb-2">
+                Following
+              </h1>
+              <p className="text-xl text-black">
+                {profile.username} follows {following.length} {following.length === 1 ? 'person' : 'people'}
+              </p>
+            </div>
+          </div>
+
+          {following.length === 0 ? (
+            <div className="text-center py-12">
+              <h3 className="text-lg font-medium text-taste-primary">Not following anyone yet</h3>
+              <p className="mt-2 text-sm text-taste-primary/70">
+                When {profile.username} follows other users, they'll show up here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {following.map(followedUser => (
+                <UserCard 
+                  key={followedUser.id} 
+                  user={followedUser}
+                  showFamilyBadge={followedUser.familyMembers?.includes(profile.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
-
-      {following.length === 0 ? (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900">Not following anyone yet</h3>
-          <p className="mt-2 text-sm text-gray-500">
-            When {profile.username} follows other users, they'll show up here.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {following.map(followedUser => (
-            <UserCard key={followedUser.id} user={followedUser} />
-          ))}
-        </div>
-      )}
     </div>
   );
 };

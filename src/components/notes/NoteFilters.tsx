@@ -139,7 +139,8 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
 
         <Button
           onClick={onReset}
-          className="ml-auto bg-taste-primary/10 text-taste-primary hover:bg-taste-primary hover:text-white transition-colors"
+          variant="secondary"
+          className="bg-[#E76F51]/10 text-[#E76F51] hover:bg-[#E76F51] hover:text-white transition-colors"
         >
           Reset Filters
         </Button>

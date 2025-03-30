@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from './auth/shared/Button';
 
 interface NoteFiltersComponentProps {
   filters: {
@@ -82,12 +83,13 @@ const NoteFiltersComponent: React.FC<NoteFiltersComponentProps> = ({
           </select>
         </div>
 
-        <button
+        <Button
           onClick={onReset}
-          className="px-4 py-2 text-[#E76F51] bg-[#E76F51]/10 rounded-lg hover:bg-[#E76F51] hover:text-white transition-colors"
+          variant="secondary"
+          className="bg-[#E76F51]/10 text-[#E76F51] hover:bg-[#E76F51] hover:text-white transition-colors"
         >
           Reset Filters
-        </button>
+        </Button>
       </div>
     </div>
   );

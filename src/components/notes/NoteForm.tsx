@@ -430,17 +430,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
 
         {formData.type === 'restaurant' && (
           <div className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6 space-y-6">
-            <FormInput
-              label="What did you eat?"
-              type="text"
-              name="title"
-              required
-              value={formData.title}
-              onChange={handleChange}
-              error={errors.title}
-              placeholder="e.g., Margherita Pizza at Joe's"
-            />
-
             <Autocomplete
               label="Restaurant"
               value={formData.location.name}
@@ -455,6 +444,17 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               allowNew
               newItemLabel="Add new restaurant"
               placeholder="e.g., Joe's Pizza"
+            />
+
+            <FormInput
+              label="What did you eat?"
+              type="text"
+              name="title"
+              required
+              value={formData.title}
+              onChange={handleChange}
+              error={errors.title}
+              placeholder="e.g., Margherita Pizza at Joe's"
             />
 
             <FormInput

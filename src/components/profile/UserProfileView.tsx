@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { User } from '../../types/user';
 import { userService } from '../../services/user';
 import { FollowButton } from './FollowButton';
+import { FamilyButton } from './FamilyButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LinkIcon } from '@heroicons/react/24/outline';
@@ -21,6 +22,8 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
   const [following, setFollowing] = useState<User[]>([]);
   const [loadingFollowers, setLoadingFollowers] = useState(false);
   const [loadingFollowing, setLoadingFollowing] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<User[]>([]);
+  const [loadingFamily, setLoadingFamily] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -67,8 +70,23 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
       }
     };
 
+    const fetchFamilyMembers = async () => {
+      if (!profile) return;
+      
+      try {
+        setLoadingFamily(true);
+        const familyMembersList = await userService.getFamilyMembers(userId);
+        setFamilyMembers(familyMembersList);
+      } catch (err) {
+        console.error('Error loading family members:', err);
+      } finally {
+        setLoadingFamily(false);
+      }
+    };
+
     fetchFollowers();
     fetchFollowing();
+    fetchFamilyMembers();
   }, [userId, profile]);
 
   const handleCopyProfileLink = async () => {
@@ -135,6 +153,26 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                   <div className="ml-4">
                     <h1>{profile.username}</h1>
                     <p className="text-gray-500">{profile.email}</p>
+                    <div className="flex items-center space-x-6 mt-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-lg font-semibold text-taste-primary">{profile.followers?.length || 0}</p>
+                        <button
+                          onClick={() => navigate(`/app/users/${userId}/followers`)}
+                          className="text-gray-500 hover:text-taste-primary transition-colors"
+                        >
+                          {profile.followers?.length === 1 ? 'Follower' : 'Followers'}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-lg font-semibold text-taste-primary">{profile.following?.length || 0}</p>
+                        <button
+                          onClick={() => navigate(`/app/users/${userId}/following`)}
+                          className="text-gray-500 hover:text-taste-primary transition-colors"
+                        >
+                          Following
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
@@ -145,6 +183,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                     <LinkIcon className="h-4 w-4 mr-1" />
                     Share Profile
                   </button>
+                  <FamilyButton targetUserId={userId} />
                   <FollowButton targetUserId={userId} />
                 </div>
               </div>
@@ -158,132 +197,125 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
             </div>
           </div>
 
-          {/* Dietary Preferences Section */}
-          {profile.dietaryPreferences && profile.dietaryPreferences.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
-              <div className="p-8">
-                <h2>Dietary Preferences</h2>
-                <div className="mt-6 flex flex-wrap gap-2">
-                  {profile.dietaryPreferences.map((pref: string) => (
-                    <span
-                      key={pref}
-                      className="tag-pill"
-                    >
-                      {pref}
-                    </span>
-                  ))}
+          {/* Dietary Info Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Dietary Preferences Section */}
+            {profile.dietaryPreferences && profile.dietaryPreferences.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
+                <div className="p-8">
+                  <h2 className="font-serif text-2xl font-semibold text-[#E76F51]">Dietary Preferences</h2>
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    {profile.dietaryPreferences.map((pref: string) => (
+                      <span
+                        key={pref}
+                        className="tag-pill"
+                      >
+                        {pref}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Allergies Section */}
-          {profile.allergies && profile.allergies.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
-              <div className="p-8">
-                <h2>Allergies</h2>
-                <div className="mt-6 flex flex-wrap gap-2">
-                  {profile.allergies.map((allergy: string) => (
-                    <span
-                      key={allergy}
-                      className="tag-pill"
-                    >
-                      {allergy}
-                    </span>
-                  ))}
+            {/* Allergies Section */}
+            {profile.allergies && profile.allergies.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
+                <div className="p-8">
+                  <h2 className="font-serif text-2xl font-semibold text-[#E76F51]">Allergies</h2>
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    {profile.allergies.map((allergy: string) => (
+                      <span
+                        key={allergy}
+                        className="tag-pill"
+                      >
+                        {allergy}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Social Stats Section */}
+          {/* Family Section */}
           <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
             <div className="p-8">
-              <h2>Social</h2>
-              <div className="mt-6 grid grid-cols-2 gap-8">
-                <div>
-                  <p className="text-2xl font-semibold text-taste-primary">{profile.followers?.length || 0}</p>
-                  <p className="text-gray-500">Followers</p>
-                  {followers.length > 0 && (
-                    <div className="mt-4 space-y-3">
-                      {followers.slice(0, 3).map((follower) => (
-                        <div
-                          key={follower.id}
-                          onClick={() => handleUserClick(follower.id)}
-                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                        >
-                          {follower.photoURL ? (
-                            <img
-                              src={follower.photoURL}
-                              alt={follower.username}
-                              className="h-8 w-8 rounded-full"
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                              <span className="text-gray-500 text-sm">{follower.username[0].toUpperCase()}</span>
-                            </div>
-                          )}
-                          <span className="text-sm font-medium text-gray-900">{follower.username}</span>
-                        </div>
-                      ))}
-                      {followers.length > 3 && (
-                        <button
-                          onClick={() => navigate(`/app/users/${userId}/followers`)}
-                          className="text-sm text-taste-primary hover:text-taste-primary-dark font-medium mt-2"
-                        >
-                          View all followers
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {loadingFollowers && (
-                    <div className="mt-4 flex justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-taste-primary"></div>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="text-2xl font-semibold text-taste-primary">{profile.following?.length || 0}</p>
-                  <p className="text-gray-500">Following</p>
-                  {following.length > 0 && (
-                    <div className="mt-4 space-y-3">
-                      {following.slice(0, 3).map((followedUser) => (
-                        <div
-                          key={followedUser.id}
-                          onClick={() => handleUserClick(followedUser.id)}
-                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                        >
-                          {followedUser.photoURL ? (
-                            <img
-                              src={followedUser.photoURL}
-                              alt={followedUser.username}
-                              className="h-8 w-8 rounded-full"
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                              <span className="text-gray-500 text-sm">{followedUser.username[0].toUpperCase()}</span>
-                            </div>
-                          )}
-                          <span className="text-sm font-medium text-gray-900">{followedUser.username}</span>
-                        </div>
-                      ))}
-                      {following.length > 3 && (
-                        <button
-                          onClick={() => navigate(`/app/users/${userId}/following`)}
-                          className="text-sm text-taste-primary hover:text-taste-primary-dark font-medium mt-2"
-                        >
-                          View all following
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {loadingFollowing && (
-                    <div className="mt-4 flex justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-taste-primary"></div>
-                    </div>
-                  )}
-                </div>
+              <div className="flex items-center justify-between">
+                <h2>Family</h2>
+                {familyMembers.length > 0 && (
+                  <button
+                    onClick={() => navigate(`/app/users/${userId}/family`)}
+                    className="text-sm text-taste-primary hover:text-taste-primary-dark font-medium"
+                  >
+                    View all family members
+                  </button>
+                )}
               </div>
+
+              {familyMembers.length === 0 ? (
+                <p className="text-gray-500 mt-4">No family members yet</p>
+              ) : (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {familyMembers.slice(0, 3).map((familyMember) => (
+                    <div
+                      key={familyMember.id}
+                      className="border border-gray-100 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => handleUserClick(familyMember.id)}
+                    >
+                      <div className="flex items-center space-x-4">
+                        {familyMember.photoURL ? (
+                          <img
+                            src={familyMember.photoURL}
+                            alt={familyMember.username}
+                            className="h-12 w-12 rounded-full"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
+                            <span className="text-gray-500 text-lg">
+                              {familyMember.username[0].toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-medium text-gray-900">{familyMember.username}</h3>
+                          {familyMember.bio && (
+                            <p className="text-sm text-gray-500 line-clamp-1">{familyMember.bio}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 space-y-2">
+                        {familyMember.dietaryPreferences && familyMember.dietaryPreferences.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {familyMember.dietaryPreferences.map((pref) => (
+                              <span
+                                key={pref}
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                              >
+                                {pref}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {familyMember.allergies && familyMember.allergies.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {familyMember.allergies.map((allergy) => (
+                              <span
+                                key={allergy}
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                              >
+                                {allergy}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

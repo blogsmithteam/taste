@@ -1,110 +1,87 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { userService } from '../services/user';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { User } from '../types/user';
+import { userService } from '../services/user';
+import { useAuth } from '../contexts/AuthContext';
 import { AddFamilyMemberModal } from '../components/family/AddFamilyMemberModal';
-import { UserCard } from '../components/users/UserCard';
-import { PlusIcon } from '@heroicons/react/24/outline';
-import { FirebaseError } from 'firebase/app';
+import { PlusIcon, ChevronRightIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 const FamilyPage: React.FC = () => {
-  const { user } = useAuth();
+  const { userId } = useParams<{ userId: string }>();
+  const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<User | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const fetchFamilyMembers = async () => {
-    if (!user) return;
-    
+  // If no userId is provided in the URL, use the current user's ID
+  const targetUserId = userId || currentUser?.uid;
+
+  const fetchData = async () => {
+    if (!targetUserId) return;
+
     try {
-      setIsLoading(true);
-      const members = await userService.getFamilyMembers(user.uid);
-      setFamilyMembers(members);
+      setLoading(true);
+      const [userProfile, familyMembersList] = await Promise.all([
+        userService.getUserProfile(targetUserId),
+        userService.getFamilyMembers(targetUserId)
+      ]);
+
+      if (!userProfile) {
+        throw new Error('User not found');
+      }
+
+      setProfile(userProfile);
+      setFamilyMembers(familyMembersList);
     } catch (err) {
-      setError('Failed to load family members. Please try again later.');
-      console.error('Error fetching family members:', err);
+      console.error('Error loading family members:', err);
+      setError('Failed to load family members');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchFamilyMembers();
-  }, [user]);
+    fetchData();
+  }, [targetUserId]);
+
+  const handleUserClick = (userId: string) => {
+    navigate(`/app/users/${userId}`);
+  };
 
   const handleAddFamilyMember = async (familyMemberId: string) => {
-    if (!user) return;
+    if (!currentUser) return;
     
     try {
-      setError(null); // Clear any existing errors
-      await userService.addFamilyMember(user.uid, familyMemberId);
-      await fetchFamilyMembers(); // Refresh the list
+      await userService.addFamilyMember(currentUser.uid, familyMemberId);
+      // Refresh the data after adding a family member
+      await fetchData();
     } catch (err) {
-      if (err instanceof FirebaseError && err.code === 'permission-denied') {
-        // If it's a permission error, verify if the operation actually succeeded
-        try {
-          const updatedUser = await userService.getUserProfile(user.uid);
-          if (updatedUser?.familyMembers?.includes(familyMemberId)) {
-            // Operation succeeded despite the error, refresh the list
-            await fetchFamilyMembers();
-            return;
-          }
-        } catch (verifyErr) {
-          console.error('Error verifying family member status:', verifyErr);
-        }
-      }
-      setError('Failed to add family member. Please try again.');
-      console.error('Error adding family member:', err);
-      throw err; // Still throw for modal error handling
+      throw err;
     }
   };
 
-  const handleRemoveFamilyMember = async (familyMemberId: string) => {
-    if (!user) return;
-    
-    try {
-      await userService.removeFamilyMember(user.uid, familyMemberId);
-      setFamilyMembers(prev => prev.filter(member => member.id !== familyMemberId));
-    } catch (err) {
-      if (err instanceof FirebaseError) {
-        // Check if it's a permission error but the operation might have succeeded
-        if (err.code === 'permission-denied') {
-          // Verify if the operation actually succeeded by checking the family members
-          try {
-            const updatedUser = await userService.getUserProfile(user.uid);
-            if (!updatedUser?.familyMembers?.includes(familyMemberId)) {
-              // If the member is no longer in the list, the operation succeeded despite the error
-              setFamilyMembers(prev => prev.filter(member => member.id !== familyMemberId));
-              return;
-            }
-          } catch (verifyErr) {
-            console.error('Error verifying family member status:', verifyErr);
-          }
-        }
-      }
-      setError('Failed to remove family member. Please try again.');
-      console.error('Error removing family member:', err);
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 animate-fade-in">
-        <div className="flex justify-center my-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-taste-primary"></div>
+      <div className="section-container">
+        <div className="section-inner">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-taste-primary"></div>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !profile) {
     return (
-      <div className="container mx-auto px-4 py-8 animate-fade-in">
-        <div className="rounded-lg bg-red-50 p-4 mb-6 border border-red-100">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">{error}</h3>
+      <div className="section-container">
+        <div className="section-inner">
+          <div className="bg-white/80 rounded-xl shadow-sm p-6">
+            <div className="rounded-md bg-red-50 p-4">
+              <p className="text-sm text-red-700">{error || 'Profile not found'}</p>
             </div>
           </div>
         </div>
@@ -112,63 +89,114 @@ const FamilyPage: React.FC = () => {
     );
   }
 
+  const isCurrentUser = currentUser?.uid === profile.id;
+
   return (
-    <div className="container mx-auto px-4 py-8 animate-fade-in">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="font-serif text-5xl font-semibold text-taste-primary mb-2">
-              Family Members
-            </h1>
-            <p className="text-xl text-black">
-              Share and discover tasting experiences with your family
-            </p>
-          </div>
+    <div className="section-container">
+      <div className="section-inner">
+        <div className="mb-6">
           <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center px-4 py-2 bg-taste-primary text-white rounded-lg hover:bg-taste-primary/90 transition-colors"
+            onClick={() => navigate(`/app/users/${profile.id}`)}
+            className="inline-flex items-center text-taste-primary hover:text-taste-primary/80 transition-colors"
           >
-            <PlusIcon className="h-5 w-5 mr-1" />
-            Add Family Member
+            <ArrowLeftIcon className="h-5 w-5 mr-2" />
+            <span>Back to {profile.username}'s Profile</span>
           </button>
         </div>
+        <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
+          <div className="p-8">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1>{isCurrentUser ? 'My Family' : `${profile.username}'s Family`}</h1>
+                <p className="text-gray-500 mt-1">{familyMembers.length} family members</p>
+              </div>
+              {isCurrentUser && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="btn-primary inline-flex items-center"
+                >
+                  <PlusIcon className="h-5 w-5 mr-2" />
+                  Add Family Member
+                </button>
+              )}
+            </div>
 
-        <div className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6 mb-8">
-          <h2 className="text-xl font-semibold text-taste-primary mb-2">About Family Sharing</h2>
-          <p className="text-black/70">
-            Family members have special access to view and share dietary preferences, 
-            allergies, and tasting notes. This helps when planning meals or dining out together.
-          </p>
+            {familyMembers.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">
+                  {isCurrentUser ? 'You have no family members yet' : 'No family members yet'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {familyMembers.map((familyMember) => (
+                  <div
+                    key={familyMember.id}
+                    onClick={() => handleUserClick(familyMember.id)}
+                    className="flex flex-col p-4 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center space-x-4 mb-3">
+                      {familyMember.photoURL ? (
+                        <img
+                          src={familyMember.photoURL}
+                          alt={familyMember.username}
+                          className="h-12 w-12 rounded-full"
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
+                          <span className="text-gray-500 text-lg">
+                            {familyMember.username[0].toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-medium text-gray-900">{familyMember.username}</h3>
+                        {familyMember.bio && (
+                          <p className="text-sm text-gray-500 line-clamp-1">{familyMember.bio}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {familyMember.dietaryPreferences && familyMember.dietaryPreferences.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {familyMember.dietaryPreferences.map((pref, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                            >
+                              {pref}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {familyMember.allergies && familyMember.allergies.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {familyMember.allergies.map((allergy, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                            >
+                              {allergy}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {familyMembers.length === 0 ? (
-          <div className="text-center py-12 bg-white/80 rounded-lg shadow-sm border border-taste-primary/10">
-            <h3 className="text-xl font-medium text-taste-primary">No family members yet</h3>
-            <p className="mt-2 text-taste-primary/70">
-              Add family members to share recipes and tasting notes with them.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {familyMembers.map(member => (
-              <div key={member.id} className="relative card-hover">
-                <UserCard 
-                  user={member}
-                  showFamilyBadge={true}
-                  onRemove={() => handleRemoveFamilyMember(member.id)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {user && (
+        {isCurrentUser && currentUser && (
           <AddFamilyMemberModal
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
             onAdd={handleAddFamilyMember}
-            currentUserId={user.uid}
+            currentUserId={currentUser.uid}
           />
         )}
       </div>

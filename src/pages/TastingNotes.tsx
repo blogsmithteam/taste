@@ -97,7 +97,7 @@ export const TastingNotes: React.FC = () => {
             </div>
             <Button
               onClick={() => navigate('/app/create-note')}
-              className="inline-flex items-center px-4 py-2 bg-[#E76F51] text-white rounded-lg hover:bg-[#E76F51]/90 transition-colors"
+              variant="primary"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Note

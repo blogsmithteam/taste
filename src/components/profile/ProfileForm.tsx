@@ -6,6 +6,7 @@ import { DietaryPreferences } from './DietaryPreferences';
 import { Allergies } from './Allergies';
 import { PrivacySettings } from './PrivacySettings';
 import { LinkIcon } from '@heroicons/react/24/outline';
+import { ProfilePhotoUpload } from './ProfilePhotoUpload';
 
 interface ProfileFormProps {
   initialData?: Partial<ProfileFormData>;
@@ -22,6 +23,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
     username: '',
     email: '',
     bio: '',
+    photoURL: '',
     dietaryPreferences: [],
     allergies: [],
     settings: DEFAULT_USER_SETTINGS,
@@ -140,8 +142,31 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
     }
   };
 
+  const handlePhotoUploadComplete = (photoURL: string) => {
+    setFormData(prev => ({ ...prev, photoURL }));
+    setSuccessMessage('Profile photo updated successfully!');
+  };
+
+  const handlePhotoUploadError = (error: Error) => {
+    setSubmitError(error.message);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-12">
+      {/* Profile Photo Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
+        <div className="p-8">
+          <h2>Profile Photo</h2>
+          <div className="mt-6">
+            <ProfilePhotoUpload
+              currentPhotoURL={formData.photoURL}
+              onUploadComplete={handlePhotoUploadComplete}
+              onError={handlePhotoUploadError}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Profile Information Section */}
       <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
         <div className="p-8">

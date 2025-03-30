@@ -30,12 +30,8 @@ service firebase.storage {
     }
 
     function isValidThumbnail() {
-      return request.resource.contentType.matches('image/.*')
-        && request.resource.size < 500 * 1024; // 500KB max for thumbnails
-    }
-
-    function debugLog(message) {
-      return debug(message);
+      return request.resource.contentType.matches('image/.*') &&
+        request.resource.size < 500 * 1024; // 500KB max for thumbnails
     }
 
     function hasNoteAccess(noteId) {
@@ -57,43 +53,29 @@ service firebase.storage {
       );
     }
 
-    // Profile pictures - simplified rules
+    // Profile photos
     match /users/{userId}/profile/{fileName} {
-      allow read: if isAuthenticated();
-      allow create, update: if isOwner(userId) && isValidProfileImage();
+      allow read: if true; // Public read access for profile photos
+      allow create, update: if isOwner(userId) && isValidProfileImage() && isValidImageMetadata();
       allow delete: if isOwner(userId);
     }
 
-    // Note images - enhanced with metadata validation and debugging
+    // Note images
     match /notes/{noteId}/images/{fileName} {
       allow read: if hasNoteAccess(noteId);
-      
-      allow create: if isAuthenticated() 
-        && isValidImage() &&
-        isValidImageMetadata();
-      
-      allow update: if isAuthenticated() &&
-        isValidImage() &&
-        isValidImageMetadata() &&
-        resource.metadata.uploadedBy == request.auth.uid;
-      
-      allow delete: if isAuthenticated() &&
-        resource.metadata.uploadedBy == request.auth.uid;
+      allow create: if isAuthenticated() && isValidImage() && isValidImageMetadata();
+      allow update: if isAuthenticated() && isValidImage() && isValidImageMetadata() && resource.metadata.uploadedBy == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.metadata.uploadedBy == request.auth.uid;
     }
 
-    // Thumbnails
+    // Note thumbnails
     match /notes/{noteId}/thumbnails/{fileName} {
       allow read: if hasNoteAccess(noteId);
-      
-      allow create: if isAuthenticated() 
-        && isValidThumbnail()
-        && isValidImageMetadata();
-      
-      allow delete: if isAuthenticated()
-        && resource.metadata.uploadedBy == request.auth.uid;
+      allow create: if isAuthenticated() && isValidThumbnail() && isValidImageMetadata();
+      allow delete: if isAuthenticated() && resource.metadata.uploadedBy == request.auth.uid;
     }
 
-    // Temporary uploads path for in-progress uploads
+    // Temporary uploads (for in-progress uploads)
     match /temp/{userId}/{fileName} {
       allow read: if isOwner(userId);
       allow write: if isOwner(userId) && isValidImage();
