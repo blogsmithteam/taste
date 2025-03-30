@@ -71,9 +71,9 @@ const Navigation = () => {
   const navItems: NavItem[] = [
     { 
       path: '/app/create-note', 
-      label: 'Note', 
+      label: 'Create Note', 
       icon: PlusIcon,
-      iconClassName: 'bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4 py-2 shadow-sm transition-colors duration-150 ease-in-out flex items-center'
+      iconClassName: 'spice-gradient text-white rounded-lg px-4 py-2 shadow-sm transition-all duration-200 ease-in-out flex items-center hover:shadow-md hover:-translate-y-0.5 active:translate-y-0'
     },
     { 
       path: '/app/tasting-notes', 
@@ -114,17 +114,19 @@ const Navigation = () => {
   ];
 
   return (
-    <nav className="bg-white shadow-sm" role="navigation" aria-label="Main navigation">
-      <div className="container mx-auto px-4 max-w-7xl">
+    <nav className="bg-[#E76F51]" role="navigation" aria-label="Main navigation">
+      <div>
         <div className="flex items-center justify-between h-16">
-          <Link to="/app" className="text-xl font-bold text-gray-800 hover:text-blue-600 transition-colors">
+          <Link to="/app" className="text-xl font-serif font-bold text-white hover:text-white/90 transition-colors ml-4">
             Taste
           </Link>
 
           {/* Mobile menu button */}
           <button
             type="button"
-            className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+            className="md:hidden inline-flex items-center justify-center p-2 rounded-lg text-white/80 
+                     hover:text-white hover:bg-white/10 focus:outline-none focus:ring-2 
+                     focus:ring-white/20 mr-4"
             aria-controls="mobile-menu"
             aria-expanded={isMobileMenuOpen}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -138,7 +140,7 @@ const Navigation = () => {
           </button>
 
           {/* Desktop navigation */}
-          <div className="hidden md:flex md:items-center md:space-x-8">
+          <div className="hidden md:flex md:items-center md:space-x-4 mr-4">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -152,174 +154,144 @@ const Navigation = () => {
                     <>
                       <button
                         onClick={() => toggleDropdown(item.path)}
-                        className={`inline-flex items-center px-1 pt-1 text-sm font-medium relative ${
-                          isActive(item.path)
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        className={`inline-flex items-center px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors ${
+                          isActive(item.path) ? 'bg-white/20' : ''
                         }`}
                       >
-                        <Icon className="h-5 w-5 mr-1" aria-hidden="true" />
+                        <Icon className="h-5 w-5 mr-2" aria-hidden="true" />
                         {item.label}
                       </button>
+                      
+                      {/* Dropdown menu */}
                       {openDropdowns.includes(item.path) && (
-                        <div
-                          onMouseEnter={() => handleMouseEnter(item.path)}
-                          onMouseLeave={() => handleMouseLeave(item.path)}
-                          className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
-                        >
-                          <div className="py-1">
-                            {item.dropdownItems.map((dropdownItem) => {
-                              const DropdownIcon = dropdownItem.icon;
-                              return dropdownItem.onClick ? (
-                                <button
-                                  key={dropdownItem.path}
-                                  onClick={() => {
-                                    setOpenDropdowns([]);
-                                    dropdownItem.onClick?.();
-                                  }}
-                                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                >
-                                  <DropdownIcon className="h-5 w-5 mr-2" aria-hidden="true" />
-                                  {dropdownItem.label}
-                                </button>
-                              ) : (
-                                <Link
-                                  key={dropdownItem.path}
-                                  to={dropdownItem.path}
-                                  className={`flex items-center px-4 py-2 text-sm ${
-                                    isActive(dropdownItem.path)
-                                      ? 'bg-gray-100 text-gray-900'
-                                      : 'text-gray-700 hover:bg-gray-50'
-                                  }`}
-                                  onClick={() => setOpenDropdowns([])}
-                                >
-                                  <DropdownIcon className="h-5 w-5 mr-2" aria-hidden="true" />
-                                  {dropdownItem.label}
-                                </Link>
-                              );
-                            })}
-                          </div>
+                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                          {item.dropdownItems.map((dropdownItem) => {
+                            const DropdownIcon = dropdownItem.icon;
+                            return (
+                              <Link
+                                key={dropdownItem.path}
+                                to={dropdownItem.path}
+                                onClick={dropdownItem.onClick}
+                                className={`block px-4 py-2 text-[#E76F51] hover:bg-[#E76F51]/5 ${
+                                  isActive(dropdownItem.path) ? 'bg-[#E76F51]/10' : ''
+                                }`}
+                              >
+                                <DropdownIcon className="h-5 w-5 mr-2 inline-block" aria-hidden="true" />
+                                {dropdownItem.label}
+                              </Link>
+                            );
+                          })}
                         </div>
                       )}
                     </>
                   ) : (
-                    <Link
-                      to={item.path}
-                      className={`inline-flex items-center px-1 pt-1 text-sm font-medium relative ${
-                        isActive(item.path)
-                          ? `${item.iconClassName || ''} border-b-2 border-blue-600`
-                          : `${item.iconClassName || ''} hover:text-gray-700 hover:border-gray-300`
-                      }`}
-                    >
-                      <Icon 
-                        className={`h-5 w-5 ${item.label ? 'mr-1' : ''}`} 
-                        aria-hidden="true" 
-                      />
-                      {item.label}
-                      {item.srLabel && (
-                        <span className="sr-only">{item.srLabel}</span>
-                      )}
-                      {item.badge && item.badge > 0 && (
-                        <span className="absolute -top-1 -right-1 block h-4 w-4 transform -translate-y-1/2 translate-x-1/2 rounded-full bg-red-600 text-white text-xs flex items-center justify-center">
-                          {item.badge > 9 ? '9+' : item.badge}
-                        </span>
-                      )}
-                    </Link>
+                    item.iconClassName?.includes('spice-gradient') ? (
+                      <Link
+                        to={item.path}
+                        className="inline-flex items-center px-4 py-2 bg-white text-[#E76F51] rounded-lg hover:bg-white/90 transition-colors shadow-sm"
+                      >
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                        {item.label && <span className="ml-2 font-medium">{item.label}</span>}
+                      </Link>
+                    ) : (
+                      <Link
+                        to={item.path}
+                        className={`inline-flex items-center px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors ${
+                          isActive(item.path) ? 'bg-white/20' : ''
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                        {item.label && <span className="ml-2">{item.label}</span>}
+                        {item.badge && (
+                          <span className="ml-2 bg-white text-[#E76F51] text-xs px-2 py-0.5 rounded-full font-medium">
+                            {item.badge}
+                          </span>
+                        )}
+                        {item.srLabel && <span className="sr-only">{item.srLabel}</span>}
+                      </Link>
+                    )
                   )}
                 </div>
               );
             })}
           </div>
         </div>
+      </div>
 
-        {/* Mobile menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden" id="mobile-menu">
-            <div className="pt-2 pb-3 space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.path}>
-                    {item.dropdownItems ? (
-                      <>
-                        <button
-                          onClick={() => toggleDropdown(item.path)}
-                          className={`flex w-full items-center px-3 py-2 text-base font-medium relative ${
-                            isActive(item.path)
-                              ? 'bg-blue-50 text-blue-600'
-                              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                          }`}
-                        >
-                          <Icon className="h-5 w-5 mr-3" aria-hidden="true" />
-                          {item.label}
-                        </button>
-                        {openDropdowns.includes(item.path) && (
-                          <div className="pl-8">
-                            {item.dropdownItems.map((dropdownItem) => {
-                              const DropdownIcon = dropdownItem.icon;
-                              return dropdownItem.onClick ? (
-                                <button
-                                  key={dropdownItem.path}
-                                  onClick={() => {
-                                    setIsMobileMenuOpen(false);
-                                    dropdownItem.onClick?.();
-                                  }}
-                                  className="flex w-full items-center px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-                                >
-                                  <DropdownIcon className="h-5 w-5 mr-2" aria-hidden="true" />
-                                  {dropdownItem.label}
-                                </button>
-                              ) : (
-                                <Link
-                                  key={dropdownItem.path}
-                                  to={dropdownItem.path}
-                                  className={`flex items-center px-3 py-2 text-sm font-medium ${
-                                    isActive(dropdownItem.path)
-                                      ? 'bg-blue-50 text-blue-600'
-                                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                                  }`}
-                                  onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                  <DropdownIcon className="h-5 w-5 mr-2" aria-hidden="true" />
-                                  {dropdownItem.label}
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </>
+      {/* Mobile menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-[#E76F51] border-t border-white/10" id="mobile-menu">
+          <div className="px-2 pt-2 pb-3 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.path}>
+                  {item.dropdownItems ? (
+                    <>
+                      <button
+                        onClick={() => toggleDropdown(item.path)}
+                        className={`w-full text-left flex items-center px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors ${
+                          isActive(item.path) ? 'bg-white/20' : ''
+                        }`}
+                      >
+                        <Icon className="h-5 w-5 mr-2" aria-hidden="true" />
+                        {item.label}
+                      </button>
+                      
+                      {openDropdowns.includes(item.path) && (
+                        <div className="pl-4 space-y-1 mt-1">
+                          {item.dropdownItems.map((dropdownItem) => {
+                            const DropdownIcon = dropdownItem.icon;
+                            return (
+                              <Link
+                                key={dropdownItem.path}
+                                to={dropdownItem.path}
+                                onClick={dropdownItem.onClick}
+                                className={`flex items-center px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors ${
+                                  isActive(dropdownItem.path) ? 'bg-white/20' : ''
+                                }`}
+                              >
+                                <DropdownIcon className="h-5 w-5 mr-2" aria-hidden="true" />
+                                {dropdownItem.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    item.iconClassName?.includes('spice-gradient') ? (
+                      <Link
+                        to={item.path}
+                        className="flex items-center px-4 py-2 bg-white text-[#E76F51] rounded-lg hover:bg-white/90 transition-colors shadow-sm"
+                      >
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                        {item.label && <span className="ml-2 font-medium">{item.label}</span>}
+                      </Link>
                     ) : (
                       <Link
                         to={item.path}
-                        className={`flex items-center px-3 py-2 text-base font-medium relative ${
-                          isActive(item.path)
-                            ? `${item.iconClassName || ''} bg-blue-50`
-                            : `${item.iconClassName || ''} hover:bg-gray-50 hover:text-gray-700`
+                        className={`flex items-center px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors ${
+                          isActive(item.path) ? 'bg-white/20' : ''
                         }`}
-                        onClick={() => setIsMobileMenuOpen(false)}
                       >
-                        <Icon 
-                          className={`h-5 w-5 ${item.label ? 'mr-3' : ''}`} 
-                          aria-hidden="true" 
-                        />
-                        {item.label}
-                        {item.srLabel && (
-                          <span className="sr-only">{item.srLabel}</span>
-                        )}
-                        {item.badge && item.badge > 0 && (
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 block h-5 w-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center">
-                            {item.badge > 9 ? '9+' : item.badge}
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                        {item.label && <span className="ml-2">{item.label}</span>}
+                        {item.badge && (
+                          <span className="ml-2 bg-white text-[#E76F51] text-xs px-2 py-0.5 rounded-full font-medium">
+                            {item.badge}
                           </span>
                         )}
+                        {item.srLabel && <span className="sr-only">{item.srLabel}</span>}
                       </Link>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    )
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </nav>
   );
 };

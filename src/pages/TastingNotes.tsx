@@ -87,24 +87,24 @@ export const TastingNotes: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-taste-light">
+    <div>
       <div className="container mx-auto px-4 py-8 animate-fade-in">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h1 className="font-serif text-4xl font-semibold text-taste-primary mb-2">Tasting Notes</h1>
-              <p className="text-taste-primary/60">Capture and explore your taste experiences</p>
+              <h1 className="font-serif text-5xl font-semibold text-[#E76F51] mb-2">Tasting Notes</h1>
+              <p className="text-[#E76F51]/70 text-xl">Capture and explore your taste experiences</p>
             </div>
             <Button
               onClick={() => navigate('/app/create-note')}
-              className="inline-flex items-center px-4 py-2 bg-taste-primary text-white rounded-lg hover:bg-taste-primary/90 transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-[#E76F51] text-white rounded-lg hover:bg-[#E76F51]/90 transition-colors"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Note
             </Button>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-taste-primary/20 p-6 mb-8">
+          <div className="bg-white/80 rounded-lg shadow-sm border border-[#E76F51]/10 p-6 mb-8">
             <NoteFiltersComponent
               filters={filters}
               onFiltersChange={handleFiltersChange}
@@ -114,10 +114,10 @@ export const TastingNotes: React.FC = () => {
           </div>
 
           {error && (
-            <div className="rounded-lg bg-taste-primary/5 border border-taste-primary/20 p-4 mb-6">
+            <div className="rounded-lg bg-[#E76F51]/5 border border-[#E76F51]/20 p-4 mb-6">
               <div className="flex">
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-taste-primary">{error}</h3>
+                  <h3 className="text-sm font-medium text-[#E76F51]">{error}</h3>
                 </div>
               </div>
             </div>
@@ -136,7 +136,7 @@ export const TastingNotes: React.FC = () => {
 
           {isLoading && (
             <div className="flex justify-center my-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-taste-primary"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E76F51]"></div>
             </div>
           )}
 
@@ -144,7 +144,7 @@ export const TastingNotes: React.FC = () => {
             <div className="flex justify-center mt-8">
               <Button
                 onClick={handleLoadMore}
-                className="bg-taste-primary/10 text-taste-primary hover:bg-taste-primary hover:text-white transition-colors"
+                className="bg-[#E76F51]/10 text-[#E76F51] hover:bg-[#E76F51] hover:text-white transition-colors"
               >
                 Load More
               </Button>
@@ -152,9 +152,9 @@ export const TastingNotes: React.FC = () => {
           )}
 
           {!isLoading && notes.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-taste-primary/20">
-              <h3 className="font-serif text-xl font-medium text-taste-primary mb-2">No notes found</h3>
-              <p className="text-taste-primary/60">
+            <div className="text-center py-12 bg-white/80 rounded-lg shadow-sm border border-[#E76F51]/10">
+              <h3 className="font-serif text-xl font-medium text-[#E76F51] mb-2">No notes found</h3>
+              <p className="text-[#E76F51]/70">
                 {Object.keys(filters).length > 0
                   ? 'Try adjusting your filters'
                   : 'Start by creating your first tasting note'}

@@ -41,16 +41,16 @@ const Profile: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
-          <p className="text-center text-gray-600">Please sign in to view your profile.</p>
+      <div>
+        <div className="max-w-md mx-auto bg-white/90 rounded-lg shadow-lg p-6">
+          <p className="text-center text-white">Please sign in to view your profile.</p>
         </div>
       </div>
     );
@@ -58,8 +58,8 @@ const Profile: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+      <div>
+        <div className="max-w-md mx-auto bg-white/90 rounded-lg shadow-lg p-6">
           <div className="rounded-md bg-red-50 p-4">
             <p className="text-sm text-red-700">{error}</p>
           </div>
@@ -69,16 +69,14 @@ const Profile: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Your Profile</h1>
-          <div className="bg-white shadow rounded-lg p-6">
-            <ProfileForm
-              initialData={profile || undefined}
-              onSuccess={handleProfileUpdate}
-            />
-          </div>
+    <div>
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-3xl font-bold text-white mb-8">Your Profile</h1>
+        <div className="bg-white/90 shadow rounded-lg p-6">
+          <ProfileForm
+            initialData={profile || undefined}
+            onSuccess={handleProfileUpdate}
+          />
         </div>
       </div>
     </div>
