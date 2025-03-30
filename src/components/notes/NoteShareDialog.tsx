@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Note } from '../../types/notes';
-import { UserProfile } from '../../types/user';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../auth/shared/Button';
-import { FriendSelector } from './FriendSelector';
 
 interface NoteShareDialogProps {
   note: Note;
@@ -22,36 +20,21 @@ export const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
 }) => {
   const { user } = useAuth();
   const [visibility, setVisibility] = useState<Note['visibility']>(note.visibility);
-  const [sharedWith, setSharedWith] = useState<string[]>(note.sharedWith || []);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [showFriendSelector, setShowFriendSelector] = useState(false);
 
   useEffect(() => {
     setVisibility(note.visibility);
-    setSharedWith(note.sharedWith || []);
   }, [note]);
 
   const handleVisibilityChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setVisibility(event.target.value as Note['visibility']);
   };
 
-  const handleRemoveUser = (userId: string) => {
-    setSharedWith(sharedWith.filter(id => id !== userId));
-  };
-
-  const handleFriendSelect = (selectedFriends: UserProfile[]) => {
-    // Use user IDs
-    const selectedUserIds = selectedFriends.map(friend => friend.uid);
-    // Merge with existing IDs, removing duplicates
-    const newSharedWith = Array.from(new Set([...sharedWith, ...selectedUserIds]));
-    setSharedWith(newSharedWith);
-  };
-
   const handleSave = async () => {
     try {
       setIsLoading(true);
-      await onUpdateSharing(visibility, sharedWith);
+      await onUpdateSharing(visibility, []);
       onClose();
     } catch (error) {
       console.error('Error in handleSave:', error);
@@ -70,9 +53,9 @@ export const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
 
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="mx-auto max-w-lg rounded-xl bg-white p-6 shadow-xl">
-          <div className="flex items-center justify-between mb-4">
-            <Dialog.Title className="text-lg font-medium">
+        <Dialog.Panel className="mx-auto max-w-md rounded-xl bg-white p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-6">
+            <Dialog.Title className="text-lg font-medium text-gray-900">
               Share Note
             </Dialog.Title>
             <button
@@ -83,78 +66,34 @@ export const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
             </button>
           </div>
 
-          <div className="space-y-4">
-            {/* Visibility Selection */}
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Visibility
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Who can see this note?
               </label>
               <select
                 value={visibility}
                 onChange={handleVisibilityChange}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               >
-                <option value="private">Private</option>
-                <option value="friends">Friends</option>
-                <option value="public">Public</option>
+                <option value="private">Only me</option>
+                <option value="friends">My friends</option>
+                <option value="public">Everyone</option>
               </select>
+              <p className="mt-2 text-sm text-gray-500">
+                {visibility === 'private' && 'Only you will be able to see this note'}
+                {visibility === 'friends' && 'Your friends will be able to see this note'}
+                {visibility === 'public' && 'Anyone can see this note'}
+              </p>
             </div>
 
-            {/* Share with specific users */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Share with specific users
-                </label>
-                <button
-                  onClick={() => setShowFriendSelector(!showFriendSelector)}
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  {showFriendSelector ? 'Hide friend list' : 'Choose from friends'}
-                </button>
-              </div>
-
-              {showFriendSelector && (
-                <div className="mb-4">
-                  <FriendSelector
-                    onSelect={handleFriendSelect}
-                    initialSelected={sharedWith}
-                  />
-                </div>
-              )}
-
-              {error && (
-                <p className="mt-1 text-sm text-red-600">{error}</p>
-              )}
-            </div>
-
-            {/* Shared Users List */}
-            {sharedWith.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">
-                  Shared with:
-                </h3>
-                <ul className="space-y-2">
-                  {sharedWith.map((userId) => (
-                    <li
-                      key={userId}
-                      className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-md"
-                    >
-                      <span className="text-sm text-gray-700">{userId}</span>
-                      <button
-                        onClick={() => handleRemoveUser(userId)}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+            {error && (
+              <div className="rounded-md bg-red-50 p-4">
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-3">
               <Button
                 onClick={onClose}
                 variant="secondary"

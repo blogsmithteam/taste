@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { StorageService } from '../../services/storage';
 import { ImageOptimizationService } from '../../services/imageOptimization';
@@ -8,6 +8,7 @@ interface PhotoUploadProps {
   userId: string;
   onUploadComplete: (result: { url: string; path: string }) => void;
   onError: (error: Error) => void;
+  existingPhotos?: string[];
 }
 
 const storageService = new StorageService();
@@ -16,12 +17,22 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
   noteId,
   userId,
   onUploadComplete,
-  onError
+  onError,
+  existingPhotos = []
 }) => {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [optimizationProgress, setOptimizationProgress] = useState<string | null>(null);
+
+  // Clear preview when component unmounts
+  useEffect(() => {
+    return () => {
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
 
   const handleUpload = useCallback(async (file: File) => {
     try {
@@ -41,30 +52,34 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
       // Upload both optimized image and thumbnail
       setOptimizationProgress(null);
-      const [mainResult, thumbnailResult] = await Promise.all([
-        storageService.uploadNotePhoto(
-          optimizedFile,
-          noteId,
-          userId,
-          (progress) => setUploadProgress(progress)
-        ),
-        storageService.uploadNotePhoto(
-          thumbnail,
-          noteId,
-          userId,
-          () => {} // We don't need to track thumbnail upload progress
-        )
-      ]);
+      try {
+        const [mainResult, thumbnailResult] = await Promise.all([
+          storageService.uploadNotePhoto(
+            optimizedFile,
+            noteId,
+            userId,
+            (progress) => setUploadProgress(progress)
+          ),
+          storageService.uploadNotePhoto(
+            thumbnail,
+            noteId,
+            userId,
+            () => {} // We don't need to track thumbnail upload progress
+          )
+        ]);
 
-      // Add thumbnail path to metadata
-      const result = {
-        ...mainResult,
-        thumbnailUrl: thumbnailResult.url
-      };
-
-      onUploadComplete(result);
+        // Add thumbnail path to metadata and call onUploadComplete
+        onUploadComplete({
+          ...mainResult,
+          thumbnailUrl: thumbnailResult.url
+        });
+      } catch (uploadError) {
+        console.error('Upload failed:', uploadError);
+        onError(uploadError instanceof Error ? uploadError : new Error('Upload failed'));
+      }
     } catch (error) {
-      onError(error instanceof Error ? error : new Error('Upload failed'));
+      console.error('Image processing failed:', error);
+      onError(error instanceof Error ? error : new Error('Image processing failed'));
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -78,9 +93,16 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
     },
     maxSize: 10 * 1024 * 1024, // 10MB max size (before optimization)
     multiple: false,
+    disabled: isUploading,
     onDrop: async (acceptedFiles: File[]) => {
       if (acceptedFiles.length > 0) {
         await handleUpload(acceptedFiles[0]);
+      }
+    },
+    onDropRejected: (rejectedFiles) => {
+      const error = rejectedFiles[0]?.errors[0];
+      if (error) {
+        onError(new Error(error.message));
       }
     }
   });

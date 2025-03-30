@@ -17,6 +17,7 @@ interface PhotoUploadResult {
   url: string;
   path: string;
   fileName: string;
+  thumbnailUrl?: string;
 }
 
 export class StorageService {

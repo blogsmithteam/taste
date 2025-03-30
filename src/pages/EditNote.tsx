@@ -59,19 +59,19 @@ const EditNote: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-gradient-to-b from-[#FDF8F6] to-white pt-1 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-taste-primary"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="text-red-600 text-xl mb-4">{error}</div>
+      <div className="min-h-screen bg-gradient-to-b from-[#FDF8F6] to-white pt-1 flex flex-col items-center justify-center">
+        <div className="text-taste-primary text-xl mb-4">{error}</div>
         <button
           onClick={() => navigate('/app/tasting-notes')}
-          className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+          className="px-4 py-2 text-sm font-medium text-taste-primary hover:text-taste-primary/80 transition-colors"
         >
           Back to Notes
         </button>
@@ -84,31 +84,31 @@ const EditNote: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <button
-            onClick={() => navigate(`/app/notes/${note.id}`)}
-            className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
+    <div className="min-h-screen bg-gradient-to-b from-[#FDF8F6] to-white pt-1">
+      <div className="container mx-auto px-2 max-w-4xl">
+        <div className="bg-white rounded shadow-sm p-2">
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={() => navigate(`/app/notes/${note.id}`)}
+              className="text-taste-primary hover:text-taste-primary/80 transition-colors"
             >
-              <path
-                fillRule="evenodd"
-                d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Back to Note
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
+            <h2 className="text-2xl font-serif font-semibold text-gray-900">Edit Note</h2>
+          </div>
+          <NoteForm initialNote={note} onSuccess={handleSuccess} />
         </div>
-
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Edit Note</h1>
-        <NoteForm initialNote={note} onSuccess={handleSuccess} />
       </div>
     </div>
   );

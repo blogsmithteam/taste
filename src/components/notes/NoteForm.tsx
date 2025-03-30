@@ -332,6 +332,19 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
     setSuccessMessage(null);
 
     try {
+      // Clean up the form data to remove undefined values
+      const cleanFormData = {
+        ...formData,
+        location: {
+          name: formData.location.name || '',
+          address: formData.location.address || '',
+          // Only include coordinates if they exist and are valid
+          ...(formData.location.coordinates?.latitude != null && formData.location.coordinates?.longitude != null
+            ? { coordinates: formData.location.coordinates }
+            : {})
+        }
+      };
+
       if (formData.type === 'restaurant' && formData.location?.name) {
         try {
           await restaurantsService.addRestaurant(formData.location.name, formData.location.address);
@@ -357,14 +370,14 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
       let savedNote: Note;
       if (initialNote) {
         savedNote = await notesService.updateNote(initialNote.id, user.uid, {
-          ...formData,
+          ...cleanFormData,
           id: initialNote.id,
-          date: formData.date // The date string will be converted to Timestamp in the service
+          date: cleanFormData.date // The date string will be converted to Timestamp in the service
         } as UpdateNoteData);
       } else {
         savedNote = await notesService.createNote(user.uid, {
-          ...formData,
-          date: formData.date // The date string will be converted to Timestamp in the service
+          ...cleanFormData,
+          date: cleanFormData.date // The date string will be converted to Timestamp in the service
         });
       }
 
@@ -556,14 +569,15 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
             )}
           </div>
 
-          <div className="bg-white rounded p-3 shadow-sm border border-gray-100 h-[150px] flex flex-col">
+          <div className="bg-white rounded p-3 shadow-sm border border-gray-100 flex flex-col">
             <label className="block text-sm font-medium text-gray-800 mb-2">
               Photos
             </label>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1">
               <PhotoUpload
                 noteId={initialNote?.id || 'temp'}
                 userId={user?.uid || ''}
+                existingPhotos={formData.photos}
                 onUploadComplete={(result) => {
                   setFormData(prev => ({
                     ...prev,
@@ -575,30 +589,46 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
                 }}
               />
               {formData.photos.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {formData.photos.map((photoUrl, index) => (
-                    <div key={photoUrl} className="relative group">
-                      <img
-                        src={photoUrl}
-                        alt={`Photo ${index + 1}`}
-                        className="w-full h-16 object-cover rounded shadow-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            photos: prev.photos.filter(url => url !== photoUrl)
-                          }));
-                        }}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
+                <div className="mt-4">
+                  <div className="text-sm text-gray-600 mb-2">
+                    {formData.photos.length} {formData.photos.length === 1 ? 'photo' : 'photos'} attached
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {formData.photos.map((photoUrl, index) => (
+                      <div key={photoUrl} className="relative group aspect-square">
+                        <div className="relative w-full h-full rounded-lg overflow-hidden border border-gray-200">
+                          <img
+                            src={photoUrl}
+                            alt={`Photo ${index + 1}`}
+                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                            onError={(e) => {
+                              console.error('Failed to load image:', photoUrl);
+                              e.currentTarget.src = 'https://via.placeholder.com/300?text=Failed+to+load';
+                            }}
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to remove this photo? This cannot be undone.')) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  photos: prev.photos.filter(url => url !== photoUrl)
+                                }));
+                              }
+                            }}
+                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all transform scale-75 group-hover:scale-100 hover:bg-red-600"
+                            title="Remove photo"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
