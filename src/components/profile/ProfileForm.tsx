@@ -20,6 +20,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
   const { user } = useAuth();
   const [formData, setFormData] = useState<ProfileFormData>({
     username: '',
+    email: '',
     bio: '',
     dietaryPreferences: [],
     allergies: [],
@@ -73,12 +74,15 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
   };
 
   const handlePreferenceToggle = (preference: string) => {
-    setFormData(prev => ({
-      ...prev,
-      dietaryPreferences: prev.dietaryPreferences.includes(preference)
-        ? prev.dietaryPreferences.filter(p => p !== preference)
-        : [...prev.dietaryPreferences, preference]
-    }));
+    setFormData(prev => {
+      const currentPreferences = prev.dietaryPreferences || [];
+      return {
+        ...prev,
+        dietaryPreferences: currentPreferences.includes(preference)
+          ? currentPreferences.filter(p => p !== preference)
+          : [...currentPreferences, preference]
+      };
+    });
   };
 
   const validateForm = (): boolean => {
@@ -94,8 +98,9 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
       newErrors.bio = 'Bio must be less than 500 characters';
     }
 
-    if (formData.dietaryPreferences.length > 0) {
-      const invalidPreferences = formData.dietaryPreferences.filter(
+    const preferences = formData.dietaryPreferences || [];
+    if (preferences.length > 0) {
+      const invalidPreferences = preferences.filter(
         pref => !DIETARY_PREFERENCES_OPTIONS.includes(pref)
       );
       if (invalidPreferences.length > 0) {
@@ -103,8 +108,8 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
       }
     }
 
-    // Add validation for allergies
-    if (formData.allergies.length > 50) {
+    const allergies = formData.allergies || [];
+    if (allergies.length > 50) {
       newErrors.allergies = 'Maximum of 50 allergies allowed';
     }
 
@@ -136,35 +141,105 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Username */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-            Username
-          </label>
-          <button
-            type="button"
-            onClick={handleCopyProfileLink}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <LinkIcon className="h-4 w-4 mr-1" />
-            Share Profile
-          </button>
+    <form onSubmit={handleSubmit} className="space-y-12">
+      {/* Profile Information Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
+        <div className="p-8">
+          <h2>Basic Information</h2>
+          <div className="mt-6 space-y-6">
+            {/* Username */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                  Username
+                </label>
+                <button
+                  type="button"
+                  onClick={handleCopyProfileLink}
+                  className="btn-secondary inline-flex items-center"
+                >
+                  <LinkIcon className="h-4 w-4 mr-1" />
+                  Share Profile
+                </button>
+              </div>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                className={`mt-1 block w-full rounded-md border ${
+                  errors.username ? 'border-red-300' : 'border-gray-300'
+                } px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm`}
+              />
+              {errors.username && (
+                <p className="mt-1 text-sm text-red-600">{errors.username}</p>
+              )}
+            </div>
+
+            {/* Bio */}
+            <div>
+              <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
+                Bio
+              </label>
+              <textarea
+                id="bio"
+                name="bio"
+                rows={3}
+                value={formData.bio || ''}
+                onChange={handleChange}
+                className={`mt-1 block w-full rounded-md border ${
+                  errors.bio ? 'border-red-300' : 'border-gray-300'
+                } px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm`}
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                {(formData.bio || '').length}/500 characters
+              </p>
+              {errors.bio && <p className="mt-1 text-sm text-red-600">{errors.bio}</p>}
+            </div>
+          </div>
         </div>
-        <input
-          type="text"
-          id="username"
-          name="username"
-          value={formData.username}
-          onChange={handleChange}
-          className={`mt-1 block w-full rounded-md border ${
-            errors.username ? 'border-red-300' : 'border-gray-300'
-          } px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm`}
-        />
-        {errors.username && (
-          <p className="mt-1 text-sm text-red-600">{errors.username}</p>
-        )}
+      </div>
+
+      {/* Dietary Preferences Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
+        <div className="p-8">
+          <h2>Dietary Preferences</h2>
+          <div className="mt-6">
+            <DietaryPreferences
+              selectedPreferences={formData.dietaryPreferences || []}
+              onChange={(preferences) => setFormData(prev => ({ ...prev, dietaryPreferences: preferences }))}
+              error={errors.dietaryPreferences}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Allergies Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
+        <div className="p-8">
+          <h2>Allergies</h2>
+          <div className="mt-6">
+            <Allergies
+              selectedAllergies={formData.allergies || []}
+              onChange={(allergies) => setFormData(prev => ({ ...prev, allergies }))}
+              error={errors.allergies}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Privacy Settings Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
+        <div className="p-8">
+          <h2>Privacy Settings</h2>
+          <div className="mt-6">
+            <PrivacySettings
+              settings={formData.settings}
+              onChange={(newSettings) => setFormData(prev => ({ ...prev, settings: newSettings }))}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Toast notification for copied link */}
@@ -174,76 +249,27 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
         </div>
       )}
 
-      {/* Bio */}
-      <div>
-        <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
-          Bio
-        </label>
-        <textarea
-          id="bio"
-          name="bio"
-          rows={3}
-          value={formData.bio}
-          onChange={handleChange}
-          className={`mt-1 block w-full rounded-md border ${
-            errors.bio ? 'border-red-300' : 'border-gray-300'
-          } px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm`}
-        />
-        <p className="mt-1 text-sm text-gray-500">
-          {formData.bio.length}/500 characters
-        </p>
-        {errors.bio && <p className="mt-1 text-sm text-red-600">{errors.bio}</p>}
-      </div>
-
-      {/* Dietary Preferences */}
-      <div>
-        <DietaryPreferences
-          selectedPreferences={formData.dietaryPreferences}
-          onChange={(preferences) => setFormData(prev => ({ ...prev, dietaryPreferences: preferences }))}
-          error={errors.dietaryPreferences}
-        />
-      </div>
-
-      {/* Replace the old allergies section with the new component */}
-      <Allergies
-        selectedAllergies={formData.allergies}
-        onChange={(allergies) => setFormData(prev => ({ ...prev, allergies }))}
-        error={errors.allergies}
-      />
-
-      {/* Replace the old settings section with the new PrivacySettings component */}
-      <div className="space-y-4">
-        <PrivacySettings
-          settings={formData.settings}
-          onChange={(newSettings) => setFormData(prev => ({ ...prev, settings: newSettings }))}
-        />
-      </div>
-
       {/* Error and Success Messages */}
       {submitError && (
-        <div className="rounded-md bg-red-50 p-4">
+        <div className="rounded-xl bg-red-50 p-6 mt-8">
           <p className="text-sm text-red-700">{submitError}</p>
         </div>
       )}
       {successMessage && (
-        <div className="rounded-md bg-green-50 p-4">
+        <div className="rounded-xl bg-green-50 p-6 mt-8">
           <p className="text-sm text-green-700">{successMessage}</p>
         </div>
       )}
 
       {/* Submit Button */}
-      <div className="pt-5">
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-              isLoading ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {isLoading ? 'Saving...' : 'Save'}
-          </button>
-        </div>
+      <div className="flex justify-end mt-8">
+        <button
+          type="submit"
+          disabled={isLoading}
+          className={`btn-primary ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {isLoading ? 'Saving...' : 'Save Changes'}
+        </button>
       </div>
     </form>
   );

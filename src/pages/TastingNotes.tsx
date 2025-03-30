@@ -93,7 +93,7 @@ export const TastingNotes: React.FC = () => {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="font-serif text-5xl font-semibold text-[#E76F51] mb-2">Tasting Notes</h1>
-              <p className="text-[#E76F51]/70 text-xl">Capture and explore your taste experiences</p>
+              <p className="text-black text-xl">Capture and explore your taste experiences</p>
             </div>
             <Button
               onClick={() => navigate('/app/create-note')}

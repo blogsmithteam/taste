@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/user';
 import { ProfileForm } from '../components/profile/ProfileForm';
-import { UserProfile } from '../types/user';
+import { ProfileFormData as UserProfile } from '../types/user';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
@@ -40,17 +40,23 @@ const Profile: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+      <div className="section-container">
+        <div className="section-inner">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-taste-primary"></div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div>
-        <div className="max-w-md mx-auto bg-white/90 rounded-lg shadow-lg p-6">
-          <p className="text-center text-white">Please sign in to view your profile.</p>
+      <div className="section-container">
+        <div className="section-inner">
+          <div className="bg-white/80 rounded-lg shadow-sm p-6">
+            <p className="text-center text-taste-primary">Please sign in to view your profile.</p>
+          </div>
         </div>
       </div>
     );
@@ -58,10 +64,12 @@ const Profile: React.FC = () => {
 
   if (error) {
     return (
-      <div>
-        <div className="max-w-md mx-auto bg-white/90 rounded-lg shadow-lg p-6">
-          <div className="rounded-md bg-red-50 p-4">
-            <p className="text-sm text-red-700">{error}</p>
+      <div className="section-container">
+        <div className="section-inner">
+          <div className="bg-white/80 rounded-lg shadow-sm p-6">
+            <div className="rounded-md bg-red-50 p-4">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -69,15 +77,16 @@ const Profile: React.FC = () => {
   }
 
   return (
-    <div>
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-8">Your Profile</h1>
-        <div className="bg-white/90 shadow rounded-lg p-6">
-          <ProfileForm
-            initialData={profile || undefined}
-            onSuccess={handleProfileUpdate}
-          />
+    <div className="section-container">
+      <div className="section-inner">
+        <div className="mb-12">
+          <h1>Your Profile</h1>
+          <p className="descriptive-text">Manage your profile information and preferences</p>
         </div>
+        <ProfileForm
+          initialData={profile || undefined}
+          onSuccess={handleProfileUpdate}
+        />
       </div>
     </div>
   );

@@ -234,6 +234,32 @@ class UserService {
     }
   }
 
+  async getFollowers(userId: string): Promise<User[]> {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) throw new Error('User not found');
+      
+      const followers = userDoc.data().followers || [];
+      if (followers.length === 0) return [];
+
+      const followerUsers = await Promise.all(
+        followers.map(async (followerId: string) => {
+          const userDoc = await getDoc(doc(db, 'users', followerId));
+          if (!userDoc.exists()) return null;
+          return {
+            id: userDoc.id,
+            ...userDoc.data()
+          } as User;
+        })
+      );
+
+      return followerUsers.filter((user): user is User => user !== null);
+    } catch (error) {
+      console.error('Error getting follower users:', error);
+      throw error;
+    }
+  }
+
   async getFamilyMembers(userId: string): Promise<User[]> {
     try {
       const userDoc = await getDoc(doc(db, 'users', userId));

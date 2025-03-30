@@ -76,6 +76,18 @@
     @apply bg-[#FFF8ED] text-taste-primary;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  h1 {
+    @apply font-serif text-5xl font-semibold text-[#E76F51];
+  }
+
+  h2 {
+    @apply font-serif text-3xl font-semibold text-[#E76F51];
+  }
+
+  h3 {
+    @apply font-serif text-2xl font-semibold text-[#E76F51];
+  }
 }
 
 @layer utilities {
@@ -85,6 +97,18 @@
 }
 
 @layer components {
+  .btn-primary {
+    @apply inline-flex items-center px-4 py-2 bg-[#E76F51] text-white rounded-lg hover:bg-[#E76F51]/90 transition-colors;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center px-4 py-2 bg-[#E76F51]/10 text-[#E76F51] hover:bg-[#E76F51] hover:text-white rounded-lg transition-colors;
+  }
+
+  .card {
+    @apply bg-white/80 rounded-lg shadow-sm border border-[#E76F51]/10 p-6;
+  }
+
   .star-rating {
     @apply inline-flex text-taste-primary;
   }
@@ -95,5 +119,17 @@
   
   .card-hover {
     @apply transition-all duration-200 hover:shadow-md hover:-translate-y-1;
+  }
+
+  .section-container {
+    @apply container mx-auto px-4 py-8 animate-fade-in;
+  }
+
+  .section-inner {
+    @apply max-w-7xl mx-auto;
+  }
+
+  .descriptive-text {
+    @apply text-xl text-black;
   }
 } 

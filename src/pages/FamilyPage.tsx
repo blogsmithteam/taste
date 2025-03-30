@@ -88,10 +88,34 @@ const FamilyPage: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center my-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-taste-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="rounded-md bg-red-50 p-4 mb-6">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">{error}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Family Members</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Family Members</h1>
         <button
           type="button"
           onClick={() => setIsModalOpen(true)}
@@ -110,25 +134,11 @@ const FamilyPage: React.FC = () => {
         </p>
       </div>
 
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 mb-6">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">{error}</h3>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="flex justify-center my-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      ) : familyMembers.length === 0 ? (
+      {familyMembers.length === 0 ? (
         <div className="text-center py-12">
           <h3 className="text-lg font-medium text-gray-900">No family members yet</h3>
           <p className="mt-2 text-sm text-gray-500">
-            Add your family members to share dietary preferences and allergies.
+            Add family members to share recipes and tasting notes with them.
           </p>
         </div>
       ) : (
