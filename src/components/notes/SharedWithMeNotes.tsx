@@ -98,68 +98,69 @@ export const SharedWithMeNotes: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="md:flex md:items-center md:justify-between mb-6">
-        <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-            Shared with Me
-          </h2>
-        </div>
-      </div>
-
-      <div className="mb-6">
-        <NoteFiltersComponent
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          onReset={handleFilterReset}
-          availableTags={availableTags}
-        />
-      </div>
-
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 mb-6">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Error</h3>
-              <div className="mt-2 text-sm text-red-700">
-                <p>{error}</p>
-              </div>
+    <div className="min-h-screen bg-taste-light">
+      <div className="container mx-auto px-4 py-8 animate-fade-in">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="font-serif text-4xl font-semibold text-taste-primary mb-2">Shared Notes</h1>
+              <p className="text-taste-primary/60">Notes shared with you by others</p>
             </div>
           </div>
-        </div>
-      )}
 
-      {notes.length === 0 && !isLoading ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">
-            No shared notes found.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {notes.map((note) => (
-            <NoteCard
-              key={note.id}
-              note={note}
-              onClick={() => handleNoteClick(note.id)}
+          <div className="bg-white rounded-lg shadow-sm border border-taste-primary/20 p-6 mb-8">
+            <NoteFiltersComponent
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onReset={handleFilterReset}
+              availableTags={availableTags}
             />
-          ))}
-        </div>
-      )}
+          </div>
 
-      {hasMore && !isLoading && (
-        <div className="mt-6 text-center">
-          <Button onClick={handleLoadMore} variant="secondary">
-            Load More
-          </Button>
-        </div>
-      )}
+          {error && (
+            <div className="rounded-lg bg-taste-primary/5 border border-taste-primary/20 p-4 mb-6">
+              <div className="flex">
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-taste-primary">{error}</h3>
+                </div>
+              </div>
+            </div>
+          )}
 
-      {isLoading && (
-        <div className="flex justify-center mt-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          {notes.length === 0 && !isLoading ? (
+            <div className="bg-white rounded-lg shadow-sm border border-taste-primary/20 p-8 text-center">
+              <p className="text-taste-primary/60 text-lg">
+                No shared notes found.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {notes.map((note) => (
+                <div key={note.id} className="card-hover">
+                  <NoteCard
+                    note={note}
+                    onClick={() => handleNoteClick(note.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {hasMore && !isLoading && (
+            <div className="mt-8 text-center">
+              <Button onClick={handleLoadMore} variant="secondary">
+                Load More
+              </Button>
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="flex justify-center mt-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-taste-primary"></div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }; 
