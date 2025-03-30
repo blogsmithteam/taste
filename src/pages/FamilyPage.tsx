@@ -90,9 +90,9 @@ const FamilyPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 animate-fade-in">
         <div className="flex justify-center my-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-taste-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-taste-primary"></div>
         </div>
       </div>
     );
@@ -100,8 +100,8 @@ const FamilyPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="rounded-md bg-red-50 p-4 mb-6">
+      <div className="container mx-auto px-4 py-8 animate-fade-in">
+        <div className="rounded-lg bg-red-50 p-4 mb-6 border border-red-100">
           <div className="flex">
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800">{error}</h3>
@@ -113,56 +113,65 @@ const FamilyPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Family Members</h1>
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
-        >
-          <PlusIcon className="h-5 w-5 mr-1" />
-          Add Family Member
-        </button>
-      </div>
+    <div className="container mx-auto px-4 py-8 animate-fade-in">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="font-serif text-5xl font-semibold text-taste-primary mb-2">
+              Family Members
+            </h1>
+            <p className="text-xl text-black">
+              Share and discover tasting experiences with your family
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center px-4 py-2 bg-taste-primary text-white rounded-lg hover:bg-taste-primary/90 transition-colors"
+          >
+            <PlusIcon className="h-5 w-5 mr-1" />
+            Add Family Member
+          </button>
+        </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <h2 className="text-lg font-medium text-blue-900 mb-2">About Family Sharing</h2>
-        <p className="text-sm text-blue-700">
-          Family members have special access to view and share dietary preferences, 
-          allergies, and tasting notes. This helps when planning meals or dining out together.
-        </p>
-      </div>
-
-      {familyMembers.length === 0 ? (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900">No family members yet</h3>
-          <p className="mt-2 text-sm text-gray-500">
-            Add family members to share recipes and tasting notes with them.
+        <div className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6 mb-8">
+          <h2 className="text-xl font-semibold text-taste-primary mb-2">About Family Sharing</h2>
+          <p className="text-black/70">
+            Family members have special access to view and share dietary preferences, 
+            allergies, and tasting notes. This helps when planning meals or dining out together.
           </p>
         </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {familyMembers.map(member => (
-            <div key={member.id} className="relative">
-              <UserCard 
-                user={member}
-                showFamilyBadge={true}
-                onRemove={() => handleRemoveFamilyMember(member.id)}
-              />
-            </div>
-          ))}
-        </div>
-      )}
 
-      {user && (
-        <AddFamilyMemberModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onAdd={handleAddFamilyMember}
-          currentUserId={user.uid}
-        />
-      )}
+        {familyMembers.length === 0 ? (
+          <div className="text-center py-12 bg-white/80 rounded-lg shadow-sm border border-taste-primary/10">
+            <h3 className="text-xl font-medium text-taste-primary">No family members yet</h3>
+            <p className="mt-2 text-taste-primary/70">
+              Add family members to share recipes and tasting notes with them.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {familyMembers.map(member => (
+              <div key={member.id} className="relative card-hover">
+                <UserCard 
+                  user={member}
+                  showFamilyBadge={true}
+                  onRemove={() => handleRemoveFamilyMember(member.id)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {user && (
+          <AddFamilyMemberModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onAdd={handleAddFamilyMember}
+            currentUserId={user.uid}
+          />
+        )}
+      </div>
     </div>
   );
 };

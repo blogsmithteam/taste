@@ -11,11 +11,13 @@ export interface Notification {
   type: NotificationType;
   senderId: string;
   senderUsername: string;
+  senderProfilePicture?: string;  // Optional profile picture URL
   recipientId: string;
   timestamp: Timestamp;
   read: boolean;
   targetId?: string; // ID of the note or other content being referenced
   title?: string; // Optional title for the notification (e.g., note title)
+  data?: any;
 }
 
 export interface CreateNotificationData {

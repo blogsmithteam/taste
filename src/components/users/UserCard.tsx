@@ -25,7 +25,7 @@ export const UserCard: React.FC<UserCardProps> = ({
 
   return (
     <div 
-      className="bg-white rounded-lg shadow p-6 relative cursor-pointer hover:shadow-md transition-shadow duration-200"
+      className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6 relative cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-1"
       onClick={handleClick}
     >
       {onRemove && (
@@ -35,7 +35,7 @@ export const UserCard: React.FC<UserCardProps> = ({
             e.stopPropagation();
             onRemove();
           }}
-          className="absolute top-2 right-2 p-1 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50"
+          className="absolute top-2 right-2 p-1 rounded-full text-taste-primary/70 hover:text-red-500 hover:bg-red-50 transition-colors"
         >
           <XMarkIcon className="h-5 w-5" />
         </button>
@@ -46,22 +46,22 @@ export const UserCard: React.FC<UserCardProps> = ({
           <img
             src={user.photoURL}
             alt={user.username}
-            className="h-12 w-12 rounded-full"
+            className="h-12 w-12 rounded-full border border-taste-primary/10"
           />
         ) : (
-          <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
-            <UserIcon className="h-6 w-6 text-gray-400" />
+          <div className="h-12 w-12 rounded-full bg-taste-primary/5 border border-taste-primary/10 flex items-center justify-center">
+            <UserIcon className="h-6 w-6 text-taste-primary/70" />
           </div>
         )}
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <p className="text-lg font-medium text-gray-900 truncate">
+              <p className="text-lg font-medium text-black truncate">
                 {user.username}
               </p>
               {showFamilyBadge && (
-                <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                <span className="inline-flex items-center rounded-full bg-taste-primary/10 px-2 py-1 text-xs font-medium text-taste-primary ring-1 ring-inset ring-taste-primary/20">
                   Family
                 </span>
               )}
@@ -72,7 +72,7 @@ export const UserCard: React.FC<UserCardProps> = ({
           </div>
           
           {user.bio && (
-            <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+            <p className="mt-1 text-sm text-taste-primary/70 line-clamp-2">
               {user.bio}
             </p>
           )}

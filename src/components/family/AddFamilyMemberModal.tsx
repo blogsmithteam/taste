@@ -33,10 +33,20 @@ export const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({
         setIsLoading(true);
         setError(null);
         setSuccess(null);
-        const following = await userService.getFollowing(currentUserId);
-        // Filter out users who are already family members
+        const [following, currentUser] = await Promise.all([
+          userService.getFollowing(currentUserId),
+          userService.getUserProfile(currentUserId)
+        ]);
+        
+        if (!currentUser) {
+          setError('Failed to load user profile. Please try again later.');
+          return;
+        }
+        
+        // Filter out users who are already family members (checking both sides of the relationship)
         const nonFamilyFriends = following.filter(friend => 
-          !friend.familyMembers?.includes(currentUserId)
+          !friend.familyMembers?.includes(currentUserId) && 
+          !currentUser.familyMembers?.includes(friend.id)
         );
         setFriends(nonFamilyFriends);
       } catch (err) {
@@ -113,20 +123,20 @@ export const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({
       <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
         
-        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+        <div className="relative transform overflow-hidden rounded-lg bg-white/80 border border-taste-primary/10 px-4 pb-4 pt-5 text-left shadow-sm transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
           <div>
             <div className="mt-3 text-center sm:mt-0 sm:text-left">
-              <h3 className="text-lg font-semibold leading-6 text-gray-900 mb-4">
+              <h3 className="font-serif text-2xl font-semibold text-taste-primary mb-4">
                 Add Family Member
               </h3>
 
               <div className="relative mb-4">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                  <MagnifyingGlassIcon className="h-5 w-5 text-taste-primary/70" aria-hidden="true" />
                 </div>
                 <input
                   type="text"
-                  className="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                  className="block w-full rounded-lg border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-taste-primary/10 placeholder:text-taste-primary/70 focus:ring-2 focus:ring-inset focus:ring-taste-primary sm:text-sm sm:leading-6"
                   placeholder="Search friends..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -134,13 +144,13 @@ export const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({
               </div>
 
               {error && (
-                <div className="rounded-md bg-red-50 p-4 mb-4">
+                <div className="rounded-lg bg-red-50 p-4 mb-4 border border-red-100">
                   <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
 
               {success && (
-                <div className="rounded-md bg-green-50 p-4 mb-4">
+                <div className="rounded-lg bg-green-50 p-4 mb-4 border border-green-100">
                   <p className="text-sm text-green-800">{success}</p>
                 </div>
               )}
@@ -148,10 +158,10 @@ export const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({
               <div className="max-h-60 overflow-y-auto">
                 {isLoading ? (
                   <div className="flex justify-center py-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-taste-primary"></div>
                   </div>
                 ) : filteredFriends.length === 0 ? (
-                  <p className="text-center text-gray-500 py-4">
+                  <p className="text-center text-taste-primary/70 py-4">
                     {searchQuery 
                       ? 'No friends found matching your search'
                       : 'No friends available to add as family members'}
@@ -161,10 +171,10 @@ export const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({
                     {filteredFriends.map(friend => (
                       <div
                         key={friend.id}
-                        className={`flex items-center p-2 rounded-md cursor-pointer ${
+                        className={`flex items-center p-2 rounded-lg cursor-pointer transition-all duration-200 ${
                           selectedUserId === friend.id
-                            ? 'bg-blue-50 border border-blue-200'
-                            : 'hover:bg-gray-50'
+                            ? 'bg-taste-primary/10 border border-taste-primary/20'
+                            : 'hover:bg-taste-primary/5'
                         }`}
                         onClick={() => setSelectedUserId(friend.id)}
                       >
@@ -176,7 +186,7 @@ export const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({
                         <div className="ml-3">
                           <p className="text-sm font-medium text-gray-900">{friend.username}</p>
                           {friend.bio && (
-                            <p className="text-sm text-gray-500 truncate">{friend.bio}</p>
+                            <p className="text-sm text-taste-primary/70 truncate">{friend.bio}</p>
                           )}
                         </div>
                       </div>
@@ -190,7 +200,7 @@ export const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({
           <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
             <button
               type="button"
-              className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex w-full justify-center rounded-lg px-4 py-2 bg-taste-primary text-white hover:bg-taste-primary/90 transition-colors sm:ml-3 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleAdd}
               disabled={!selectedUserId || isAdding || !!success}
             >
@@ -198,7 +208,7 @@ export const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({
             </button>
             <button
               type="button"
-              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+              className="mt-3 inline-flex w-full justify-center rounded-lg px-4 py-2 bg-taste-primary/10 text-taste-primary hover:bg-taste-primary hover:text-white transition-colors sm:mt-0 sm:w-auto"
               onClick={onClose}
             >
               Cancel

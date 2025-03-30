@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/user';
 import { User } from '../types/user';
 import { UserCard } from '../components/users/UserCard';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 
 const DiscoverUsers: React.FC = () => {
   const location = useLocation();
@@ -53,68 +53,85 @@ const DiscoverUsers: React.FC = () => {
       )
     : users;
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
-          {isAllFriendsMode ? 'All Friends' : 'Discover Users'}
-        </h1>
-      </div>
-
-      <div className="relative mb-6">
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 animate-fade-in">
+        <div className="flex justify-center my-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-taste-primary"></div>
         </div>
-        <input
-          type="text"
-          className="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-          placeholder={isAllFriendsMode ? "Search friends..." : "Search users..."}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
       </div>
+    );
+  }
 
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 mb-6">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">{error}</h3>
-            </div>
+  return (
+    <div className="container mx-auto px-4 py-8 animate-fade-in">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="font-serif text-5xl font-semibold text-taste-primary mb-2">
+              Discover Users
+            </h1>
+            <p className="text-xl text-black">
+              Find and connect with fellow taste enthusiasts
+            </p>
           </div>
         </div>
-      )}
 
-      {isLoading ? (
-        <div className="flex justify-center my-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-        </div>
-      ) : filteredUsers.length === 0 ? (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900">
-            {searchQuery 
-              ? 'No users found matching your search'
-              : isAllFriendsMode
-                ? 'No friends yet'
-                : 'No users found'
-            }
-          </h3>
-          <p className="mt-2 text-sm text-gray-500">
-            {isAllFriendsMode
-              ? 'Start following other users to see them here.'
-              : 'Try adjusting your search or check back later.'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredUsers.map(user => (
-            <UserCard 
-              key={user.id} 
-              user={user}
-              showFamilyBadge={user.familyMembers?.includes(user.id)}
+        <div className="p-6">
+          {error && (
+            <div className="mb-6 bg-white/80 rounded-lg shadow-sm border border-red-100 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <UserGroupIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Error</h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <p>{error}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="relative mb-6">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <MagnifyingGlassIcon className="h-5 w-5 text-taste-primary/70" aria-hidden="true" />
+            </div>
+            <input
+              type="text"
+              className="block w-full bg-white/80 rounded-lg border-taste-primary/10 pl-10 pr-3 py-2 text-sm placeholder:text-taste-primary/70 focus:border-taste-primary focus:ring-taste-primary"
+              placeholder="Search users by name or bio..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
-          ))}
+          </div>
+
+          {filteredUsers.length === 0 ? (
+            <div className="text-center py-12">
+              <UserGroupIcon className="mx-auto h-12 w-12 text-taste-primary/40" />
+              <h3 className="mt-2 text-xl font-medium text-taste-primary">
+                {searchQuery ? 'No users found matching your search' : 'No users found'}
+              </h3>
+              <p className="mt-1 text-taste-primary/70">
+                {searchQuery 
+                  ? 'Try adjusting your search terms'
+                  : 'Check back later for more users to connect with.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filteredUsers.map(discoveredUser => (
+                <UserCard 
+                  key={discoveredUser.id} 
+                  user={discoveredUser}
+                  showFamilyBadge={discoveredUser.familyMembers?.includes(user?.uid || '')}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
