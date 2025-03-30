@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { UserProfile } from '../../types/user';
+import { User } from '../../types/user';
 import { userService } from '../../services/user';
 import { FollowButton } from './FollowButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { TrashIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { LinkIcon } from '@heroicons/react/24/outline';
 
 interface UserProfileViewProps {
   userId: string;
@@ -13,10 +13,9 @@ interface UserProfileViewProps {
 export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
 
   useEffect(() => {
@@ -34,23 +33,6 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
 
     fetchProfile();
   }, [userId]);
-
-  const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this user?')) {
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      await userService.deleteUser(userId);
-      navigate('/app/discover');
-    } catch (err) {
-      console.error('Error deleting user:', err);
-      setError('Failed to delete user');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const handleCopyProfileLink = async () => {
     const profileUrl = `${window.location.origin}/app/users/${userId}`;
@@ -83,19 +65,16 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
     );
   }
 
-  // Check if the current user is an admin (you can modify this condition based on your admin criteria)
-  const isAdmin = user?.email === 'maddy@theblogsmith.com';
-
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
         <div className="px-4 py-5 sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              {profile.profilePicture ? (
+              {profile.photoURL ? (
                 <img
                   className="h-16 w-16 rounded-full"
-                  src={profile.profilePicture}
+                  src={profile.photoURL}
                   alt={profile.username}
                 />
               ) : (
@@ -116,16 +95,6 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                 <LinkIcon className="h-4 w-4 mr-1" />
                 Share Profile
               </button>
-              {isAdmin && (
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                >
-                  <TrashIcon className="h-4 w-4 mr-1" />
-                  {isDeleting ? 'Deleting...' : 'Delete User'}
-                </button>
-              )}
               <FollowButton targetUserId={userId} />
             </div>
           </div>
@@ -147,11 +116,11 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
               </div>
             )}
 
-            {profile.dietaryPreferences.length > 0 && (
+            {profile.dietaryPreferences && profile.dietaryPreferences.length > 0 && (
               <div>
                 <h3 className="text-lg font-medium text-gray-900">Dietary Preferences</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {profile.dietaryPreferences.map((pref) => (
+                  {profile.dietaryPreferences.map((pref: string) => (
                     <span
                       key={pref}
                       className="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
@@ -163,11 +132,11 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
               </div>
             )}
 
-            {profile.allergies.length > 0 && (
+            {profile.allergies && profile.allergies.length > 0 && (
               <div>
                 <h3 className="text-lg font-medium text-gray-900">Allergies</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {profile.allergies.map((allergy) => (
+                  {profile.allergies.map((allergy: string) => (
                     <span
                       key={allergy}
                       className="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-red-100 text-red-800"
@@ -181,10 +150,10 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
 
             <div className="flex justify-between text-sm text-gray-500">
               <div>
-                <span className="font-medium text-gray-900">{profile.followers.length}</span> followers
+                <span className="font-medium text-gray-900">{profile.followers?.length || 0}</span> followers
               </div>
               <div>
-                <span className="font-medium text-gray-900">{profile.following.length}</span> following
+                <span className="font-medium text-gray-900">{profile.following?.length || 0}</span> following
               </div>
             </div>
           </div>

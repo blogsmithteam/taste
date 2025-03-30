@@ -4,14 +4,14 @@ import { ActivityFeed as ActivityFeedComponent } from '../components/ActivityFee
 const ActivityFeedPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="md:flex md:items-center md:justify-between mb-6">
-        <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-            Activity Feed
-          </h2>
-        </div>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-[28px] font-serif font-bold text-[#0F1419]">
+          Activity Feed
+        </h1>
+        <button className="inline-flex items-center px-4 py-2 rounded-full border border-[#CFD9DE] bg-white text-[15px] font-medium text-[#0F1419] hover:bg-[#F7F9F9] transition-colors">
+          Find Friends
+        </button>
       </div>
-
       <ActivityFeedComponent />
     </div>
   );

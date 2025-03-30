@@ -17,7 +17,7 @@ service cloud.firestore {
     
     function isFriend(userId) {
       return isAuthenticated() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following.hasAny([userId]);
+        userId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following;
     }
     
     function isFamilyMember(userId) {
@@ -139,7 +139,7 @@ service cloud.firestore {
         canModifyFollowing(userId)
       );
       
-      allow delete: if isOwner(userId);
+      allow delete: if false;
       
       match /following/{followedId} {
         allow read: if isAuthenticated() && isOwner(userId);
@@ -216,7 +216,7 @@ service cloud.firestore {
     match /activities/{activityId} {
       allow read: if isAuthenticated() && (
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following.hasAny([resource.data.userId])
+        resource.data.userId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following
       );
       
       allow create: if isAuthenticated() && 

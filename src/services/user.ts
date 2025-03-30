@@ -208,23 +208,6 @@ class UserService {
     return followingProfiles.filter((profile): profile is User => profile !== null);
   }
 
-  async deleteUser(userId: string): Promise<void> {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-
-    if (!userDoc.exists()) {
-      throw new Error('User not found');
-    }
-
-    try {
-      // Delete the user document
-      await deleteDoc(userRef);
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      throw new Error('Failed to delete user');
-    }
-  }
-
   async getFollowing(userId: string): Promise<User[]> {
     try {
       const userDoc = await getDoc(doc(db, 'users', userId));

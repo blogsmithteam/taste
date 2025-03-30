@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, orderBy, limit, getDocs, Timestamp, getDoc, doc, DocumentData } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
 import { db } from '../lib/firebase';
-import { format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { UserIcon, HeartIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -224,78 +224,101 @@ export const ActivityFeed: React.FC = () => {
   }, [user, profile]);
 
   const renderActivityContent = (activity: Activity) => {
+    const timeAgo = formatDistanceToNow(activity.timestamp.toDate(), { addSuffix: true });
+    
     switch (activity.type) {
       case 'note_created':
       case 'note_updated':
         const isNewNote = activity.type === 'note_created';
         return (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-1.5 text-[15px]">
               <button 
                 onClick={() => handleUserClick(activity.userId)}
-                className="font-medium text-gray-900 hover:text-indigo-600"
+                className="font-semibold text-[#2F3336] hover:text-[#536471] transition-colors"
               >
                 {activity.username}
               </button>
-              <span>{isNewNote ? 'shared a new tasting note' : 'updated their tasting note'}</span>
-              <span>·</span>
-              <time className="text-gray-500">{format(activity.timestamp.toDate(), 'MMM d')}</time>
+              <span className="text-[#536471]">{isNewNote ? 'shared a new tasting note' : 'updated their tasting note'}</span>
+              <span className="text-[#536471] mx-0.5">·</span>
+              <time className="text-[#536471]">{timeAgo}</time>
             </div>
-            <div className="bg-gray-50 rounded-lg overflow-hidden">
-              <button 
-                onClick={() => handleActivityClick(activity)}
-                className="block w-full text-left hover:bg-gray-100 transition-colors duration-200"
-              >
-                <div className="p-3">
-                  <div className="flex flex-col gap-3">
-                    {activity.imageUrl && (
-                      <div className="w-full h-48 rounded-md overflow-hidden bg-gray-50">
-                        <img 
-                          src={activity.imageUrl} 
-                          alt={activity.title}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base text-gray-900">
-                        {activity.title} {activity.location && (
-                          <span className="text-gray-600">
-                            at {activity.location.name}
-                          </span>
+            {activity.title && (
+              <div className="bg-white rounded-xl border border-[#CFD9DE] overflow-hidden hover:border-[#A9B9C4] transition-colors">
+                <button 
+                  onClick={() => handleActivityClick(activity)}
+                  className="block w-full text-left"
+                >
+                  <div className="p-3">
+                    <div className="flex flex-col gap-3">
+                      {activity.imageUrl && (
+                        <div className="w-full aspect-[16/9] rounded-xl overflow-hidden bg-[#F7F9F9]">
+                          <img 
+                            src={activity.imageUrl} 
+                            alt={activity.title}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-[15px] font-semibold text-[#2F3336] leading-5">
+                          {activity.title}
+                          {activity.location && (
+                            <span className="text-[#536471] font-normal ml-1">
+                              at {activity.location.name}
+                            </span>
+                          )}
+                        </h3>
+                        {activity.rating && (
+                          <div className="mt-1 flex items-center">
+                            <div className="flex items-center">
+                              {[...Array(5)].map((_, i) => (
+                                <svg
+                                  key={i}
+                                  className={`h-4 w-4 ${
+                                    i < activity.rating! ? 'text-amber-500' : 'text-[#CFD9DE]'
+                                  }`}
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              ))}
+                            </div>
+                          </div>
                         )}
-                      </h3>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </button>
-            </div>
+                </button>
+              </div>
+            )}
           </div>
         );
       case 'started_following':
         return (
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-1.5 text-[15px]">
                 <button 
                   onClick={() => handleUserClick(activity.userId)}
-                  className="font-medium text-gray-900 hover:text-indigo-600"
+                  className="font-semibold text-[#2F3336] hover:text-[#536471] transition-colors"
                 >
                   {activity.username}
                 </button>
-                <span className="text-gray-500">started following</span>
+                <span className="text-[#536471]">started following</span>
                 <button 
                   onClick={() => handleUserClick(activity.targetId)}
-                  className="font-medium text-gray-900 hover:text-indigo-600"
+                  className="font-semibold text-[#2F3336] hover:text-[#536471] transition-colors"
                 >
                   {activity.targetUsername}
                 </button>
-                <span>·</span>
-                <time className="text-gray-500">{format(activity.timestamp.toDate(), 'MMM d')}</time>
+                <span className="text-[#536471] mx-0.5">·</span>
+                <time className="text-[#536471]">{timeAgo}</time>
               </div>
             </div>
             {activity.targetProfilePicture && (
-              <div className="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden bg-[#F7F9F9]">
                 <img
                   src={activity.targetProfilePicture}
                   alt={activity.targetUsername}
@@ -382,17 +405,17 @@ export const ActivityFeed: React.FC = () => {
   if (profileLoading || loading) {
     return (
       <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#2F3336]"></div>
       </div>
     );
   }
 
   if (profileError || error) {
     return (
-      <div className="rounded-md bg-red-50 p-4">
+      <div className="rounded-xl bg-red-50 p-4">
         <div className="flex">
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-800">Error</h3>
+            <h3 className="text-sm font-semibold text-red-800">Error</h3>
             <div className="mt-2 text-sm text-red-700">
               <p>{profileError || error}</p>
             </div>
@@ -404,9 +427,9 @@ export const ActivityFeed: React.FC = () => {
 
   if (!profile?.following.length) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500 text-lg">
-          Follow some users to see their activity in your feed.
+      <div className="text-center py-12">
+        <p className="text-[#536471] text-[15px]">
+          Follow some users to see their activity in your feed
         </p>
       </div>
     );
@@ -414,60 +437,150 @@ export const ActivityFeed: React.FC = () => {
 
   if (activities.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500 text-lg">
-          No recent activity from people you follow.
+      <div className="text-center py-12">
+        <p className="text-[#536471] text-[15px]">
+          No recent activity from people you follow
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flow-root">
-      <ul role="list" className="space-y-4">
-        {activities.map((activity) => (
-          <li key={activity.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="p-3">
-              <div className="flex items-center gap-3 mb-2">
-                {activity.profilePicture ? (
-                  <img
-                    className="h-8 w-8 rounded-full bg-gray-400 flex-shrink-0"
-                    src={activity.profilePicture}
-                    alt={activity.username}
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                    <UserIcon className="h-5 w-5 text-gray-500" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  {renderActivityContent(activity)}
+    <div className="space-y-4">
+      {activities.map((activity) => (
+        <article key={activity.id} className="bg-white rounded-2xl border border-[#CFD9DE] hover:border-[#A9B9C4] transition-colors p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              {activity.profilePicture ? (
+                <img
+                  className="h-10 w-10 rounded-full bg-[#F7F9F9]"
+                  src={activity.profilePicture}
+                  alt={activity.username}
+                />
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-[#F7F9F9] flex items-center justify-center">
+                  <UserIcon className="h-5 w-5 text-[#536471]" />
                 </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1 text-[15px] leading-5">
+                <button 
+                  onClick={() => handleUserClick(activity.userId)}
+                  className="font-semibold text-[#0F1419] hover:underline"
+                >
+                  {activity.username}
+                </button>
+                <span className="text-[#536471]">
+                  {activity.type === 'note_created' ? 'shared a new tasting note' : 
+                   activity.type === 'note_updated' ? 'updated their tasting note' :
+                   'started following'}
+                </span>
+                <span className="text-[#536471]">·</span>
+                <time className="text-[#536471]">
+                  {formatDistanceToNow(activity.timestamp.toDate(), { addSuffix: true })}
+                </time>
               </div>
-              <div className="flex items-center gap-6 mt-2 pl-11">
-                <button
+              
+              {(activity.type === 'note_created' || activity.type === 'note_updated') && activity.title && (
+                <div className="mt-3 rounded-xl border border-[#CFD9DE] overflow-hidden hover:border-[#A9B9C4] transition-colors">
+                  <button 
+                    onClick={() => handleActivityClick(activity)}
+                    className="block w-full text-left"
+                  >
+                    {activity.imageUrl && (
+                      <div className="aspect-[16/9] w-full">
+                        <img 
+                          src={activity.imageUrl} 
+                          alt={activity.title}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <h3 className="text-[15px] font-semibold text-[#0F1419] leading-5">
+                        {activity.title}
+                        {activity.location && (
+                          <span className="text-[#536471] font-normal ml-1">
+                            at {activity.location.name}
+                          </span>
+                        )}
+                      </h3>
+                      {activity.rating && (
+                        <div className="mt-2 flex items-center gap-0.5">
+                          {[...Array(5)].map((_, i) => (
+                            <svg
+                              key={i}
+                              className={`h-4 w-4 ${
+                                i < activity.rating! ? 'text-amber-500' : 'text-[#CFD9DE]'
+                              }`}
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                </div>
+              )}
+              
+              {activity.type === 'started_following' && (
+                <div className="mt-2 flex items-center gap-3">
+                  <button 
+                    onClick={() => handleUserClick(activity.targetId)}
+                    className="text-[15px] font-semibold text-[#0F1419] hover:underline"
+                  >
+                    {activity.targetUsername}
+                  </button>
+                  {activity.targetProfilePicture && (
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden">
+                      <img
+                        src={activity.targetProfilePicture}
+                        alt={activity.targetUsername}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div className="mt-3 flex items-center gap-6">
+                <button 
                   onClick={() => handleLike(activity)}
-                  className="flex items-center text-gray-500 hover:text-red-500 transition-colors duration-200"
+                  className="group flex items-center gap-2 text-[#536471]"
                 >
                   {activity.isLiked ? (
-                    <HeartIconSolid className="h-4 w-4 text-red-500" />
+                    <HeartIconSolid className="h-5 w-5 text-red-500" />
                   ) : (
-                    <HeartIcon className="h-4 w-4" />
+                    <HeartIcon className="h-5 w-5 group-hover:text-red-500" />
                   )}
-                  <span className="ml-1.5 text-xs">{activity.likes || 0}</span>
+                  <span className="text-[13px] group-hover:text-red-500">
+                    {activity.likes || 0}
+                  </span>
                 </button>
-                <button
+                <button 
                   onClick={() => handleComment(activity)}
-                  className="flex items-center text-gray-500 hover:text-blue-500 transition-colors duration-200"
+                  className="group flex items-center gap-2 text-[#536471]"
                 >
-                  <ChatBubbleLeftIcon className="h-4 w-4" />
-                  <span className="ml-1.5 text-xs">{activity.comments || 0}</span>
+                  <ChatBubbleLeftIcon className="h-5 w-5 group-hover:text-[#1D9BF0]" />
+                  <span className="text-[13px] group-hover:text-[#1D9BF0]">
+                    {activity.comments || 0}
+                  </span>
                 </button>
               </div>
             </div>
-          </li>
-        ))}
-      </ul>
+          </div>
+        </article>
+      ))}
+      
+      {loadingMore && (
+        <div className="flex justify-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1D9BF0]"></div>
+        </div>
+      )}
     </div>
   );
 }; 
