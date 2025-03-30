@@ -396,101 +396,81 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-4">
-        <div className="bg-white rounded p-3 shadow-sm border border-gray-100">
-          <label className="block text-sm font-medium text-gray-800 mb-2">
-            Type
-          </label>
-          <select
-            name="type"
-            value={formData.type}
-            onChange={handleChange}
-            className="block w-full rounded border-gray-200 shadow-sm focus:border-[#E07A5F] focus:ring-[#E07A5F] text-sm"
-          >
-            <option value="restaurant">Restaurant</option>
-            <option value="recipe">Recipe</option>
-          </select>
-          {errors.type && (
-            <p className="mt-1 text-xs text-red-600">{errors.type}</p>
-          )}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              Type of Note
+            </label>
+            <select
+              name="type"
+              value={formData.type}
+              onChange={handleChange}
+              className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-taste-primary focus:ring-taste-primary text-base"
+            >
+              <option value="restaurant">Restaurant</option>
+              <option value="recipe">Recipe</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              Date
+            </label>
+            <input
+              type="date"
+              name="date"
+              value={formData.date}
+              onChange={handleChange}
+              className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-taste-primary focus:ring-taste-primary text-base"
+            />
+          </div>
         </div>
 
-        {formData.type === 'restaurant' &&
-          <div className="bg-white rounded p-3 shadow-sm border border-gray-100 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Autocomplete
-                  label="Restaurant Name"
-                  value={formData.location?.name || ''}
-                  onChange={(value) => setFormData(prev => ({
-                    ...prev,
-                    location: { ...prev.location, name: value },
-                    title: '',
-                    menuItemId: undefined
-                  }))}
-                  onSelect={handleRestaurantSelect}
-                  searchFunction={restaurantsService.searchRestaurants}
-                  error={errors.location?.name}
-                  required
-                  allowNew
-                  newItemLabel="Add new restaurant"
-                  placeholder="e.g., Luigi's Pizzeria"
-                />
-              </div>
-              <div>
-                <Autocomplete
-                  label="What did you get?"
-                  value={formData.title}
-                  onChange={(value) => setFormData(prev => ({ ...prev, title: value, menuItemId: undefined }))}
-                  onSelect={handleMenuItemSelect}
-                  searchFunction={searchMenuItems}
-                  error={errors.title}
-                  required
-                  allowNew
-                  newItemLabel="Add new menu item"
-                  placeholder="e.g., Margherita Pizza"
-                />
-                <div className="mt-2">
-                  <Checkbox
-                    label="I'd order again"
-                    name="wouldOrderAgain"
-                    checked={formData.wouldOrderAgain}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-            </div>
+        {formData.type === 'restaurant' && (
+          <div className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6 space-y-6">
+            <FormInput
+              label="What did you eat?"
+              type="text"
+              name="title"
+              required
+              value={formData.title}
+              onChange={handleChange}
+              error={errors.title}
+              placeholder="e.g., Margherita Pizza at Joe's"
+            />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <FormInput
-                  label="Date"
-                  type="date"
-                  name="date"
-                  required
-                  value={formData.date}
-                  onChange={handleChange}
-                  error={errors.date}
-                />
-              </div>
-              <div>
-                <FormInput
-                  label="Address"
-                  type="text"
-                  name="location.address"
-                  value={formData.location.address}
-                  onChange={handleChange}
-                  error={errors.location?.address}
-                  placeholder="Restaurant address"
-                />
-              </div>
-            </div>
+            <Autocomplete
+              label="Restaurant"
+              value={formData.location.name}
+              onChange={(value) => setFormData(prev => ({
+                ...prev,
+                location: { ...prev.location, name: value }
+              }))}
+              onSelect={handleRestaurantSelect}
+              searchFunction={restaurantsService.searchRestaurants}
+              error={errors.location?.name}
+              required
+              allowNew
+              newItemLabel="Add new restaurant"
+              placeholder="e.g., Joe's Pizza"
+            />
+
+            <FormInput
+              label="Address"
+              type="text"
+              name="location.address"
+              value={formData.location.address}
+              onChange={handleChange}
+              error={errors.location?.address}
+              placeholder="e.g., 123 Main St, New York, NY"
+            />
           </div>
-        }
+        )}
 
         {formData.type === 'recipe' && (
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100 space-y-6">
+          <div className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6 space-y-6">
             <FormInput
               label="What did you make?"
               type="text"
@@ -529,7 +509,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
                   ...prev,
                   recipeCreator: { ...prev.recipeCreator, type: e.target.value as RecipeCreatorType }
                 }))}
-                className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-[#E07A5F] focus:ring-[#E07A5F] text-base"
+                className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-taste-primary focus:ring-taste-primary text-base"
               >
                 <option value="person">Person</option>
                 <option value="website">Website/Blog</option>
@@ -552,28 +532,54 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded p-3 shadow-sm border border-gray-100 h-[150px] flex flex-col">
-            <label className="block text-sm font-medium text-gray-800 mb-2">
-              Notes
+        <div className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6 space-y-6">
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              Rating
             </label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              placeholder="Share your thoughts about the dish..."
-              className="block w-full flex-1 rounded border-gray-200 shadow-sm focus:border-[#E07A5F] focus:ring-[#E07A5F] text-sm resize-none"
+            <FoodRating
+              value={formData.rating}
+              onChange={(value) => setFormData(prev => ({ ...prev, rating: value }))}
             />
-            {errors.notes && (
-              <p className="mt-1 text-xs text-red-600">{errors.notes}</p>
-            )}
           </div>
 
-          <div className="bg-white rounded p-3 shadow-sm border border-gray-100 flex flex-col">
-            <label className="block text-sm font-medium text-gray-800 mb-2">
+          <FormInput
+            label="Notes"
+            type="textarea"
+            name="notes"
+            value={formData.notes}
+            onChange={handleChange}
+            error={errors.notes}
+            placeholder="What did you think? How was the taste, texture, presentation?"
+          />
+
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              Tags
+            </label>
+            <TagInput
+              tags={formData.tags}
+              onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
+              placeholder="Add tags (e.g., spicy, vegetarian)"
+            />
+          </div>
+
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              What could be improved?
+            </label>
+            <TagInput
+              tags={formData.improvements}
+              onChange={(improvements) => setFormData(prev => ({ ...prev, improvements }))}
+              placeholder="Add improvement suggestions"
+            />
+          </div>
+
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
               Photos
             </label>
-            <div className="flex-1">
+            <div className="bg-white rounded-lg shadow-sm border border-taste-primary/10 p-4">
               <PhotoUpload
                 noteId={initialNote?.id || 'temp'}
                 userId={user?.uid || ''}
@@ -588,113 +594,47 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
                   setSubmitError(`Failed to upload photo: ${error.message}`);
                 }}
               />
-              {formData.photos.length > 0 && (
-                <div className="mt-4">
-                  <div className="text-sm text-gray-600 mb-2">
-                    {formData.photos.length} {formData.photos.length === 1 ? 'photo' : 'photos'} attached
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {formData.photos.map((photoUrl, index) => (
-                      <div key={photoUrl} className="relative group aspect-square">
-                        <div className="relative w-full h-full rounded-lg overflow-hidden border border-gray-200">
-                          <img
-                            src={photoUrl}
-                            alt={`Photo ${index + 1}`}
-                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                            onError={(e) => {
-                              console.error('Failed to load image:', photoUrl);
-                              e.currentTarget.src = 'https://via.placeholder.com/300?text=Failed+to+load';
-                            }}
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (window.confirm('Are you sure you want to remove this photo? This cannot be undone.')) {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  photos: prev.photos.filter(url => url !== photoUrl)
-                                }));
-                              }
-                            }}
-                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all transform scale-75 group-hover:scale-100 hover:bg-red-600"
-                            title="Remove photo"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded p-3 shadow-sm border border-gray-100">
-            <label className="block text-sm font-medium text-gray-800 mb-2">
-              Rating
-            </label>
-            <FoodRating
-              value={formData.rating}
-              onChange={(value) => setFormData(prev => ({ ...prev, rating: value }))}
-              error={errors.rating}
+          <div>
+            <Checkbox
+              label={`Would ${formData.type === 'restaurant' ? 'order' : 'make'} again`}
+              name="wouldOrderAgain"
+              checked={formData.wouldOrderAgain}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                wouldOrderAgain: e.target.checked
+              }))}
             />
           </div>
-          <div className="bg-white rounded p-3 shadow-sm border border-gray-100">
-            <label className="block text-sm font-medium text-gray-800 mb-2">
+
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
               Visibility
             </label>
             <select
               name="visibility"
               value={formData.visibility}
               onChange={handleChange}
-              className="block w-full rounded border-gray-200 shadow-sm focus:border-[#E07A5F] focus:ring-[#E07A5F] text-sm"
+              className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-taste-primary focus:ring-taste-primary text-base"
             >
-              <option value="private">Only Me</option>
-              <option value="friends">Friends</option>
+              <option value="private">Private</option>
               <option value="public">Public</option>
             </select>
-            {errors.visibility && (
-              <p className="mt-1 text-xs text-red-600">{errors.visibility}</p>
-            )}
           </div>
-        </div>
-
-        <div className="bg-white rounded p-3 shadow-sm border border-gray-100">
-          <label className="block text-sm font-medium text-gray-800 mb-2">
-            Tags
-          </label>
-          <TagInput
-            tags={formData.tags}
-            onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
-            placeholder="e.g., Italian, Pizza, Spicy (comma separated)"
-          />
         </div>
       </div>
 
       {submitError && (
-        <div className="rounded bg-red-50 p-2 border border-red-100">
-          <div className="flex">
-            <div className="ml-2">
-              <h3 className="text-xs font-medium text-red-800">{submitError}</h3>
-            </div>
-          </div>
+        <div className="rounded-lg bg-red-50 border border-red-100 p-4">
+          <p className="text-sm text-red-800">{submitError}</p>
         </div>
       )}
 
       {successMessage && (
-        <div className="rounded bg-green-50 p-2 border border-green-100">
-          <div className="flex">
-            <div className="ml-2">
-              <h3 className="text-xs font-medium text-green-800">{successMessage}</h3>
-            </div>
-          </div>
+        <div className="rounded-lg bg-green-50 border border-green-100 p-4">
+          <p className="text-sm text-green-800">{successMessage}</p>
         </div>
       )}
 
@@ -703,13 +643,14 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
           type="button"
           variant="secondary"
           onClick={() => navigate('/app/tasting-notes')}
+          className="px-4 py-2 text-taste-primary bg-taste-primary/10 hover:bg-taste-primary hover:text-white transition-colors rounded-lg"
         >
           Cancel
         </Button>
         <Button
           type="submit"
           disabled={isLoading}
-          className="bg-gradient-to-r from-[#E07A5F] to-[#81375E] hover:from-[#81375E] hover:to-[#3D405B] text-white"
+          className="px-4 py-2 bg-taste-primary text-white rounded-lg hover:bg-taste-primary/90 transition-colors"
         >
           {isLoading ? 'Saving...' : initialNote ? 'Save Changes' : 'Create Note'}
         </Button>

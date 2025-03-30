@@ -5,6 +5,7 @@ import { db } from '../lib/firebase';
 import { Note } from '../types/notes';
 import { NoteForm } from '../components/notes/NoteForm';
 import { useAuth } from '../contexts/AuthContext';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 const EditNote: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -59,7 +60,7 @@ const EditNote: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#FDF8F6] to-white pt-1 flex items-center justify-center">
+      <div className="min-h-screen bg-taste-light flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-taste-primary"></div>
       </div>
     );
@@ -67,14 +68,21 @@ const EditNote: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#FDF8F6] to-white pt-1 flex flex-col items-center justify-center">
-        <div className="text-taste-primary text-xl mb-4">{error}</div>
-        <button
-          onClick={() => navigate('/app/tasting-notes')}
-          className="px-4 py-2 text-sm font-medium text-taste-primary hover:text-taste-primary/80 transition-colors"
-        >
-          Back to Notes
-        </button>
+      <div className="min-h-screen bg-taste-light">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6 text-center">
+              <p className="text-taste-primary/80 text-lg">{error}</p>
+              <button
+                onClick={() => navigate('/app/tasting-notes')}
+                className="mt-4 inline-flex items-center text-taste-primary hover:text-taste-primary/80 transition-colors"
+              >
+                <ArrowLeftIcon className="h-5 w-5 mr-2" />
+                Back to Notes
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -84,30 +92,25 @@ const EditNote: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FDF8F6] to-white pt-1">
-      <div className="container mx-auto px-2 max-w-4xl">
-        <div className="bg-white rounded shadow-sm p-2">
-          <div className="flex items-center gap-2 mb-4">
+    <div className="min-h-screen bg-taste-light">
+      <div className="container mx-auto px-4 py-8 animate-fade-in">
+        <div className="max-w-4xl mx-auto">
+          {/* Back Navigation */}
+          <div className="mb-6">
             <button
               onClick={() => navigate(`/app/notes/${note.id}`)}
-              className="text-taste-primary hover:text-taste-primary/80 transition-colors"
+              className="inline-flex items-center text-taste-primary hover:text-taste-primary/80 transition-colors"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <ArrowLeftIcon className="h-5 w-5 mr-2" />
+              <span>Back to Note</span>
             </button>
-            <h2 className="text-2xl font-serif font-semibold text-gray-900">Edit Note</h2>
           </div>
-          <NoteForm initialNote={note} onSuccess={handleSuccess} />
+
+          {/* Form Container */}
+          <div className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6">
+            <h1 className="font-serif text-5xl font-semibold text-taste-primary mb-6">Edit Note</h1>
+            <NoteForm initialNote={note} onSuccess={handleSuccess} />
+          </div>
         </div>
       </div>
     </div>

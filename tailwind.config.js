@@ -53,7 +53,7 @@ export default {
           secondary: '#84A98C',
           neutral: '#F4F1DE',
           accent: '#5E548E',
-          light: '#FFF8ED'
+          light: '#FDF1ED'
         }
       },
       borderRadius: {

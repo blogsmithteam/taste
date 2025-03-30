@@ -8,7 +8,7 @@
   :root {
     --background: 39 70% 97%;
     --foreground: 20 14.3% 21%;
-    --taste-light: 39 100% 96.5%;  /* This is equivalent to #FFF8ED */
+    --taste-light: 13 73% 96.5%;  /* This is equivalent to #FDF1ED */
 
     --card: 39 70% 97%;
     --card-foreground: 20 14.3% 21%;
@@ -73,7 +73,7 @@
   }
   
   body {
-    @apply bg-[#FFF8ED] text-taste-primary;
+    @apply bg-[#FDF1ED] text-taste-primary;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
