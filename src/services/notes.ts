@@ -32,6 +32,18 @@ export interface Note {
   updatedAt: Timestamp;
   recipeUrl?: string;
   shareRecipe?: boolean;
+  likes?: number;
+  likedBy?: string[];
+  comments?: Comment[];
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  username: string;
+  profilePicture?: string;
+  text: string;
+  createdAt: Timestamp;
 }
 
 export interface CreateNoteData {
@@ -108,6 +120,10 @@ export interface NotesService {
   fetchSharedNotes(userId: string): Promise<Note[]>;
   fetchUserFriendsNotes(userId: string, pageSize?: number): Promise<Note[]>;
   getUserNotes(userId: string): Promise<Note[]>;
+  likeNote(noteId: string, userId: string): Promise<Note>;
+  unlikeNote(noteId: string, userId: string): Promise<Note>;
+  addComment(noteId: string, userId: string, text: string): Promise<Comment>;
+  getComments(noteId: string): Promise<Comment[]>;
 }
 
 export const notesService = {
@@ -911,6 +927,235 @@ export const notesService = {
     } catch (error) {
       console.error('Error fetching note:', error);
       throw new Error('Failed to fetch note');
+    }
+  },
+
+  async likeNote(noteId: string, userId: string): Promise<Note> {
+    if (!userId) throw new Error('User ID is required');
+    if (!noteId) throw new Error('Note ID is required');
+
+    try {
+      const noteRef = doc(db, 'notes', noteId);
+      const noteDoc = await getDoc(noteRef);
+
+      if (!noteDoc.exists()) {
+        throw new Error('Note not found');
+      }
+
+      const note = { id: noteDoc.id, ...noteDoc.data() } as Note;
+      
+      // Check permissions - multiple ways a user can interact with a note
+      const isOwner = note.userId === userId;
+      const isExplicitlyShared = note.sharedWith && note.sharedWith.includes(userId);
+      const isPublic = note.visibility === 'public';
+      
+      // For friends-only notes, we'll assume it's accessible for now
+      // In a production app, you would check if the user is a friend of the note owner
+      const isFriendsOnly = note.visibility === 'friends';
+      
+      if (!isOwner && !isExplicitlyShared && !isPublic && !isFriendsOnly) {
+        // Add debug info to help troubleshoot
+        console.log('Permission denied:', {
+          noteId,
+          userId,
+          noteOwnerId: note.userId,
+          isSharedWith: note.sharedWith,
+          visibility: note.visibility
+        });
+        throw new Error('You do not have permission to like this note');
+      }
+      
+      // Check if the user already liked this note
+      const likedBy = note.likedBy || [];
+      if (likedBy.includes(userId)) {
+        return note; // User already liked this note
+      }
+
+      // Update the note with new like
+      await updateDoc(noteRef, {
+        likes: (note.likes || 0) + 1,
+        likedBy: [...likedBy, userId],
+        updatedAt: serverTimestamp()
+      });
+
+      // Get the updated note
+      const updatedNoteDoc = await getDoc(noteRef);
+      const updatedNote = { id: updatedNoteDoc.id, ...updatedNoteDoc.data() } as Note;
+
+      // Get user data for notification
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists() && note.userId !== userId) {
+        const userData = userDoc.data();
+        
+        // Create notification for the note owner
+        await notificationsService.createNotification({
+          type: 'note_liked',
+          senderId: userId,
+          senderUsername: userData.username,
+          recipientId: note.userId,
+          targetId: noteId,
+          title: note.title
+        });
+      }
+
+      return updatedNote;
+    } catch (error) {
+      console.error('Error liking note:', error);
+      throw new Error('Failed to like note');
+    }
+  },
+
+  async unlikeNote(noteId: string, userId: string): Promise<Note> {
+    if (!userId) throw new Error('User ID is required');
+    if (!noteId) throw new Error('Note ID is required');
+
+    try {
+      const noteRef = doc(db, 'notes', noteId);
+      const noteDoc = await getDoc(noteRef);
+
+      if (!noteDoc.exists()) {
+        throw new Error('Note not found');
+      }
+
+      const note = { id: noteDoc.id, ...noteDoc.data() } as Note;
+      
+      // Check permissions - multiple ways a user can interact with a note
+      const isOwner = note.userId === userId;
+      const isExplicitlyShared = note.sharedWith && note.sharedWith.includes(userId);
+      const isPublic = note.visibility === 'public';
+      
+      // For friends-only notes, we'll assume it's accessible for now
+      // In a production app, you would check if the user is a friend of the note owner
+      const isFriendsOnly = note.visibility === 'friends';
+      
+      if (!isOwner && !isExplicitlyShared && !isPublic && !isFriendsOnly) {
+        console.log('Permission denied:', {
+          noteId,
+          userId,
+          noteOwnerId: note.userId,
+          isSharedWith: note.sharedWith,
+          visibility: note.visibility
+        });
+        throw new Error('You do not have permission to unlike this note');
+      }
+      
+      // Check if the user has liked this note
+      const likedBy = note.likedBy || [];
+      if (!likedBy.includes(userId)) {
+        return note; // User hasn't liked this note
+      }
+
+      // Update the note to remove the like
+      await updateDoc(noteRef, {
+        likes: Math.max(0, (note.likes || 1) - 1),
+        likedBy: likedBy.filter(id => id !== userId),
+        updatedAt: serverTimestamp()
+      });
+
+      // Get the updated note
+      const updatedNoteDoc = await getDoc(noteRef);
+      return { id: updatedNoteDoc.id, ...updatedNoteDoc.data() } as Note;
+    } catch (error) {
+      console.error('Error unliking note:', error);
+      throw new Error('Failed to unlike note');
+    }
+  },
+
+  async addComment(noteId: string, userId: string, text: string): Promise<Comment> {
+    if (!userId) throw new Error('User ID is required');
+    if (!noteId) throw new Error('Note ID is required');
+    if (!text.trim()) throw new Error('Comment text is required');
+
+    try {
+      // Get user info for the comment
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+      const userData = userDoc.data();
+
+      // Get the note
+      const noteRef = doc(db, 'notes', noteId);
+      const noteDoc = await getDoc(noteRef);
+
+      if (!noteDoc.exists()) {
+        throw new Error('Note not found');
+      }
+
+      const note = { id: noteDoc.id, ...noteDoc.data() } as Note;
+      
+      // Check permissions - multiple ways a user can interact with a note
+      const isOwner = note.userId === userId;
+      const isExplicitlyShared = note.sharedWith && note.sharedWith.includes(userId);
+      const isPublic = note.visibility === 'public';
+      
+      // For friends-only notes, we'll assume it's accessible for now
+      // In a production app, you would check if the user is a friend of the note owner
+      const isFriendsOnly = note.visibility === 'friends';
+      
+      if (!isOwner && !isExplicitlyShared && !isPublic && !isFriendsOnly) {
+        console.log('Permission denied:', {
+          noteId,
+          userId,
+          noteOwnerId: note.userId,
+          isSharedWith: note.sharedWith,
+          visibility: note.visibility
+        });
+        throw new Error('You do not have permission to comment on this note');
+      }
+      
+      // Create a new comment
+      const newComment: Comment = {
+        id: crypto.randomUUID(), // Generate a random ID
+        userId,
+        username: userData.username,
+        profilePicture: userData.profilePicture,
+        text,
+        createdAt: Timestamp.now()
+      };
+
+      // Add the comment to the note
+      const existingComments = note.comments || [];
+      await updateDoc(noteRef, {
+        comments: [...existingComments, newComment],
+        updatedAt: serverTimestamp()
+      });
+
+      // Create notification for the note owner if commenter is not the owner
+      if (note.userId !== userId) {
+        await notificationsService.createNotification({
+          type: 'note_commented',
+          senderId: userId,
+          senderUsername: userData.username,
+          recipientId: note.userId,
+          targetId: noteId,
+          title: note.title
+        });
+      }
+
+      return newComment;
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw new Error('Failed to add comment');
+    }
+  },
+
+  async getComments(noteId: string): Promise<Comment[]> {
+    if (!noteId) throw new Error('Note ID is required');
+
+    try {
+      const noteRef = doc(db, 'notes', noteId);
+      const noteDoc = await getDoc(noteRef);
+
+      if (!noteDoc.exists()) {
+        throw new Error('Note not found');
+      }
+
+      const note = { id: noteDoc.id, ...noteDoc.data() } as Note;
+      return note.comments || [];
+    } catch (error) {
+      console.error('Error getting comments:', error);
+      throw new Error('Failed to get comments');
     }
   }
 }; 

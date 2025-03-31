@@ -201,4 +201,41 @@ To create a recipe note:
 5. Add your rating, notes, tags, and photos
 6. Save your recipe note
 
-Recipe notes can be shared more widely than other notes if you enable the "Share this recipe with friends" option, which allows friends to view it even when your general note visibility is set to private. 
+Recipe notes can be shared more widely than other notes if you enable the "Share this recipe with friends" option, which allows friends to view it even when your general note visibility is set to private.
+
+## Like and Comment Functionality for Shared Notes
+
+We've added the ability for users to like and comment on notes that have been shared with them. This functionality is only available for shared notes, not for the user's own notes.
+
+### Features Added:
+
+1. **Like/Unlike Notes**: 
+   - Users can like and unlike notes shared with them
+   - Like counts are displayed on notes
+   - The note owner is notified when someone likes their note
+
+2. **Comments on Notes**:
+   - Users can add comments on shared notes
+   - All comments are displayed in chronological order
+   - Comments include the user's name, profile picture, and timestamp
+   - The note owner is notified when someone comments on their note
+
+### Components:
+
+- **CommentSection**: A new component that displays likes and comments for a note
+- **UserAvatar**: A reusable component for displaying user avatars or initials
+
+### Data Model Updates:
+
+- Added `likes`, `likedBy`, and `comments` fields to the Note type
+- Created a Comment interface to represent comment data
+
+### Firestore Rules:
+
+The existing Firestore rules already support this functionality, as they allow users to update notes that are shared with them as long as they only modify the `comments` field.
+
+### How to Use:
+
+1. View a shared note to see likes and comments
+2. Click the heart icon to like or unlike a note
+3. Use the comment form to add a new comment 

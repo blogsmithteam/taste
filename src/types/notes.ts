@@ -12,6 +12,15 @@ interface Location {
   };
 }
 
+export interface Comment {
+  id: string;
+  userId: string;
+  username: string;
+  profilePicture?: string;
+  text: string;
+  createdAt: Timestamp;
+}
+
 export interface Note {
   id: string;
   userId: string;
@@ -32,4 +41,7 @@ export interface Note {
   updatedAt: Timestamp;
   recipeUrl?: string;
   shareRecipe?: boolean;
+  likes?: number;
+  likedBy?: string[];
+  comments?: Comment[];
 } 

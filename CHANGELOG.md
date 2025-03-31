@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added prominent "Recipe Creator" section with "What did you make?" field
 - Added optional Recipe URL field to link to original recipes
 - Added ability to share recipes with friends regardless of visibility settings
+- Like and comment functionality for shared notes
+  - Users can like/unlike notes shared with them
+  - Users can comment on notes shared with them
+  - Note owners receive notifications for likes and comments
+- New UserAvatar component for displaying user profile pictures or initials
 
 ### Changed
 - Updated project description to reflect generic tasting notes functionality

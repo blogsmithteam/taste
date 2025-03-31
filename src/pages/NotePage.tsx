@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Dialog } from '@headlessui/react';
 import { ExclamationTriangleIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { NoteShareDialog } from '../components/notes/NoteShareDialog';
+import CommentSection from '../components/notes/CommentSection';
 
 const NotePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +22,7 @@ const NotePage: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSharedNote, setIsSharedNote] = useState(false);
 
   // Get the source route from location state or default to tasting-notes
   const sourceRoute = (location.state?.from as string) || '/app/tasting-notes';
@@ -50,7 +52,42 @@ const NotePage: React.FC = () => {
           return;
         }
 
-        setNote({ id: noteDoc.id, ...noteDoc.data() } as Note);
+        const noteData = { id: noteDoc.id, ...noteDoc.data() } as Note;
+        setNote(noteData);
+
+        // Determine if this is a shared note (not owned by the current user)
+        if (user && user.uid !== noteData.userId) {
+          // Check if the note is shared with the current user explicitly
+          const isExplicitlyShared = noteData.sharedWith && Array.isArray(noteData.sharedWith) && noteData.sharedWith.includes(user.uid);
+          
+          // Check if the note is public (visible to all)
+          const isPublic = noteData.visibility === 'public';
+          
+          // Check if the note is visible to friends (requires a separate check through userService if needed)
+          const isVisibleToFriends = noteData.visibility === 'friends';
+          
+          // Debug info to help troubleshoot
+          console.log('Note sharing info:', {
+            noteId: noteData.id, 
+            isCurrentUserOwner: user.uid === noteData.userId,
+            isExplicitlyShared,
+            isPublic,
+            isVisibleToFriends,
+            sharedWith: noteData.sharedWith || [],
+            visibility: noteData.visibility,
+            currentUserId: user.uid
+          });
+          
+          // For now, we'll set isSharedNote to true if any of these conditions are met
+          // This is a more permissive approach that assumes users can interact with shared content
+          setIsSharedNote(isExplicitlyShared || isPublic || isVisibleToFriends);
+        } else {
+          console.log('Note is owned by current user or user is not logged in', {
+            noteId: noteData.id,
+            noteUserId: noteData.userId,
+            currentUserId: user?.uid
+          });
+        }
       } catch (err) {
         setError('Failed to fetch note');
         console.error('Error fetching note:', err);
@@ -60,7 +97,7 @@ const NotePage: React.FC = () => {
     };
 
     fetchNote();
-  }, [id]);
+  }, [id, user]);
 
   const handleEdit = () => {
     if (note) {
@@ -147,6 +184,18 @@ const NotePage: React.FC = () => {
               onDelete={canEdit ? () => setShowDeleteDialog(true) : undefined}
               onShare={canEdit ? handleShare : undefined}
             />
+            
+            {/* Comments Section - only for shared notes */}
+            <div className="px-8 pb-8">
+              <CommentSection
+                noteId={note.id}
+                noteUserId={note.userId}
+                likes={note.likes || 0}
+                likedBy={note.likedBy || []}
+                comments={note.comments || []}
+                isSharedNote={isSharedNote}
+              />
+            </div>
           </div>
         </div>
       </div>

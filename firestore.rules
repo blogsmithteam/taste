@@ -195,7 +195,9 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidNoteData(request.resource.data);
       allow update: if isAuthenticated() && (
         isNoteOwner() || 
-        (isSharedWithUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt']))
+        (isSharedWithUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt', 'likes', 'likedBy'])) ||
+        (isPublic() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt', 'likes', 'likedBy'])) ||
+        (isFriendsOnly() && isFriend(resource.data.userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt', 'likes', 'likedBy']))
       );
       allow delete: if isNoteOwner();
     }
