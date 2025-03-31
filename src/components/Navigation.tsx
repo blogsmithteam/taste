@@ -157,7 +157,7 @@ const Navigation = () => {
                     <>
                       <button
                         onClick={() => toggleDropdown(item.path)}
-                        className={`inline-flex items-center px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors ${
+                        className={`w-full inline-flex items-center px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors ${
                           isActive(item.path) ? 'bg-white/20' : ''
                         }`}
                       >
@@ -167,7 +167,11 @@ const Navigation = () => {
                       
                       {/* Dropdown menu */}
                       {openDropdowns.includes(item.path) && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                        <div 
+                          className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50"
+                          onMouseEnter={() => handleMouseEnter(item.path)}
+                          onMouseLeave={() => handleMouseLeave(item.path)}
+                        >
                           {item.dropdownItems.map((dropdownItem) => {
                             const DropdownIcon = dropdownItem.icon;
                             return (

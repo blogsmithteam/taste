@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, addDoc, orderBy, limit, serverTimestamp, doc, setDoc, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, orderBy, limit, serverTimestamp, doc, setDoc, collectionGroup, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 export interface Restaurant {
@@ -217,6 +217,40 @@ export const restaurantsService = {
     } catch (error) {
       console.error('Error searching all menu items:', error);
       throw new Error('Failed to search menu items');
+    }
+  },
+
+  async toggleFavorite(userId: string, restaurantName: string): Promise<boolean> {
+    try {
+      const favoritesRef = doc(db, `users/${userId}/favorites/${restaurantName}`);
+      const favoriteDoc = await getDocs(query(collection(db, `users/${userId}/favorites`), where('restaurantName', '==', restaurantName)));
+      
+      if (!favoriteDoc.empty) {
+        // Remove from favorites
+        await deleteDoc(favoritesRef);
+        return false;
+      } else {
+        // Add to favorites
+        await setDoc(favoritesRef, {
+          restaurantName,
+          createdAt: serverTimestamp(),
+        });
+        return true;
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      throw new Error('Failed to toggle favorite');
+    }
+  },
+
+  async getFavorites(userId: string): Promise<string[]> {
+    try {
+      const favoritesRef = collection(db, `users/${userId}/favorites`);
+      const favoritesSnapshot = await getDocs(favoritesRef);
+      return favoritesSnapshot.docs.map(doc => doc.data().restaurantName);
+    } catch (error) {
+      console.error('Error getting favorites:', error);
+      throw new Error('Failed to get favorites');
     }
   },
 }; 

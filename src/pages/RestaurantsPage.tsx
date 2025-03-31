@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { notesService, Note } from '../services/notes';
 import { restaurantsService } from '../services/restaurants';
-import { BuildingStorefrontIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { BuildingStorefrontIcon, ArrowLeftIcon, HeartIcon } from '@heroicons/react/24/outline';
+import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { Timestamp } from 'firebase/firestore';
 import { NoteCard } from '../components/notes/NoteCard';
 
@@ -21,17 +22,29 @@ const RestaurantsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
 
   useEffect(() => {
-    const fetchRestaurants = async () => {
+    const fetchData = async () => {
       if (!user) return;
       
       try {
         setIsLoading(true);
+        // Get user notes first
         const userNotes = await notesService.getUserNotes(user.uid);
+        
+        // Try to get favorites, but don't let it block loading restaurants
+        try {
+          const userFavorites = await restaurantsService.getFavorites(user.uid);
+          setFavorites(userFavorites);
+        } catch (favError) {
+          console.error('Error fetching favorites:', favError);
+          // Don't set error state for favorites failure
+          setFavorites([]);
+        }
         
         // Extract unique restaurants from notes
         const restaurantMap = new Map<string, Restaurant>();
@@ -80,14 +93,14 @@ const RestaurantsPage: React.FC = () => {
         
         setRestaurants(sortedRestaurants);
       } catch (err) {
-        console.error('Error fetching restaurants:', err);
+        console.error('Error fetching data:', err);
         setError('Failed to load restaurants');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchRestaurants();
+    fetchData();
   }, [user]);
 
   const handleRestaurantClick = (restaurant: Restaurant) => {
@@ -96,6 +109,23 @@ const RestaurantsPage: React.FC = () => {
 
   const handleNoteClick = (noteId: string) => {
     navigate(`/app/notes/${noteId}`);
+  };
+
+  const handleFavoriteClick = async (e: React.MouseEvent, restaurantName: string) => {
+    e.stopPropagation();
+    if (!user) return;
+
+    try {
+      const isFavorited = await restaurantsService.toggleFavorite(user.uid, restaurantName);
+      if (isFavorited) {
+        setFavorites(prev => [...prev, restaurantName]);
+      } else {
+        setFavorites(prev => prev.filter(name => name !== restaurantName));
+      }
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+      setError('Failed to update favorite');
+    }
   };
 
   if (!user) {
@@ -195,41 +225,32 @@ const RestaurantsPage: React.FC = () => {
               <div
                 key={restaurant.id}
                 onClick={() => handleRestaurantClick(restaurant)}
-                className="bg-white rounded-lg shadow-sm border border-[#E76F51]/10 p-6 hover:shadow-md transition-shadow cursor-pointer"
+                className="bg-white rounded-lg shadow-sm border border-[#E76F51]/10 p-6 hover:shadow-md transition-shadow cursor-pointer relative group"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-medium text-gray-900 mb-1">{restaurant.name}</h3>
-                    {restaurant.address && (
-                      <p className="text-sm text-gray-500 mb-2">{restaurant.address}</p>
-                    )}
-                  </div>
-                  <BuildingStorefrontIcon className="h-6 w-6 text-[#E76F51]" />
-                </div>
-                
-                <div className="mt-4 grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-500">Visits</p>
-                    <p className="text-lg font-medium text-gray-900">{restaurant.visitCount}</p>
-                  </div>
-                  {restaurant.averageRating !== undefined && (
-                    <div>
-                      <p className="text-sm text-gray-500">Avg Rating</p>
-                      <p className="text-lg font-medium text-gray-900">
-                        {Math.round(restaurant.averageRating)}/5
-                      </p>
+                    <h3 className="text-xl font-medium text-gray-900 mb-1">{restaurant.name}</h3>
+                    {restaurant.address && (
+                      <p className="text-gray-500 text-sm mb-2">{restaurant.address}</p>
+                    )}
+                    <div className="flex gap-4 text-sm text-gray-600">
+                      <span>{restaurant.visitCount} visits</span>
+                      {restaurant.averageRating !== undefined && (
+                        <span>{Math.round(restaurant.averageRating)}/5 rating</span>
+                      )}
                     </div>
-                  )}
-                </div>
-                
-                {restaurant.lastVisited && (
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-500">Last visited</p>
-                    <p className="text-sm text-gray-900">
-                      {restaurant.lastVisited.toLocaleDateString()}
-                    </p>
                   </div>
-                )}
+                  <button
+                    onClick={(e) => handleFavoriteClick(e, restaurant.name)}
+                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    {favorites.includes(restaurant.name) ? (
+                      <HeartIconSolid className="h-6 w-6 text-[#E76F51]" />
+                    ) : (
+                      <HeartIcon className="h-6 w-6 text-[#E76F51] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

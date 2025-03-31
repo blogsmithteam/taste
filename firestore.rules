@@ -150,6 +150,11 @@ service cloud.firestore {
         allow read: if isAuthenticated() && (isOwner(userId) || isOwner(followerId));
         allow write: if isOwner(followerId);
       }
+
+      match /favorites/{restaurantId} {
+        allow read: if isAuthenticated() && isOwner(userId);
+        allow write: if isAuthenticated() && isOwner(userId);
+      }
     }
 
     // Notes collection
