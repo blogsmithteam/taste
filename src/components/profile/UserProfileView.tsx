@@ -381,7 +381,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                   ).length === 0 ? (
                   <p className="text-gray-500">No favorite meals yet</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {recentNotes
                       .filter(note => note.favorite)
                       .filter(note => 
@@ -390,8 +390,17 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                       )
                       .slice(0, 6)
                       .map(note => (
-                        <div key={note.id} onClick={() => handleNoteClick(note.id)} className="card-hover">
-                          <NoteCard note={note} />
+                        <div 
+                          key={note.id} 
+                          onClick={() => handleNoteClick(note.id)} 
+                          className="bg-white rounded-lg p-3 border border-gray-100 hover:border-taste-primary/20 hover:shadow-sm transition-all cursor-pointer"
+                        >
+                          <h4 className="font-medium text-taste-primary mb-1 line-clamp-1">{note.title}</h4>
+                          {note.location?.name && (
+                            <div className="text-sm text-gray-600 line-clamp-1">
+                              {note.location.name}
+                            </div>
+                          )}
                         </div>
                       ))}
                   </div>
@@ -401,25 +410,6 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
               {/* Favorite Restaurants Subsection */}
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Favorite Restaurants</h3>
-                <div className="mb-4">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search favorite restaurants..."
-                      value={restaurantFilter}
-                      onChange={(e) => setRestaurantFilter(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E76F51]/50 focus:border-transparent"
-                    />
-                    {restaurantFilter && (
-                      <button
-                        onClick={() => setRestaurantFilter('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                </div>
                 {favoriteRestaurants
                   .filter(restaurantName => 
                     !restaurantFilter || 
@@ -475,12 +465,6 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
               <div className="p-8">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="font-serif text-2xl font-semibold text-[#E76F51]">Recent Notes</h2>
-                  <button
-                    onClick={() => navigate(`/app/users/${userId}/notes`)}
-                    className="text-[#E76F51] hover:text-[#E76F51]/80 text-sm font-medium"
-                  >
-                    View All
-                  </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {recentNotes
