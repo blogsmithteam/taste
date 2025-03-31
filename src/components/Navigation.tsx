@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon, ArrowRightOnRectangleIcon, UsersIcon, ShareIcon, ChartBarIcon, UserGroupIcon, MagnifyingGlassIcon, HomeIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
+import { BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon, ArrowRightOnRectangleIcon, UsersIcon, ShareIcon, ChartBarIcon, UserGroupIcon, MagnifyingGlassIcon, HomeIcon, BuildingStorefrontIcon, BookmarkIcon } from '@heroicons/react/24/outline';
 import { BellIcon } from '@heroicons/react/24/solid';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -83,6 +83,7 @@ const Navigation = () => {
         { path: '/app/tasting-notes', label: 'My notes', icon: BookOpenIcon },
         { path: '/app/restaurants', label: 'My restaurants', icon: BuildingStorefrontIcon },
         { path: '/app/shared-with-me', label: 'Shared notes', icon: ShareIcon },
+        { path: '/app/bookmarks', label: 'Bookmarks', icon: BookmarkIcon },
       ]
     },
     { 

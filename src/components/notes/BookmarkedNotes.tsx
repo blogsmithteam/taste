@@ -9,16 +9,13 @@ import { NoteFiltersComponent } from './NoteFilters';
 import { Button } from '../auth/shared/Button';
 import { User } from '../../types/user';
 
-export const SharedWithMeNotes: React.FC = () => {
+export const BookmarkedNotes: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
-  const [bookmarkedNotes, setBookmarkedNotes] = useState<Set<string>>(new Set());
   const [userInfo, setUserInfo] = useState<Record<string, User>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastVisible, setLastVisible] = useState<any>(null);
-  const [hasMore, setHasMore] = useState(true);
   const [filters, setFilters] = useState<NoteFilters>({});
   const [availableTags, setAvailableTags] = useState<string[]>([]);
 
@@ -42,92 +39,93 @@ export const SharedWithMeNotes: React.FC = () => {
     setUserInfo(newUserInfo);
   };
 
-  const fetchBookmarks = async () => {
-    if (!user) return;
-    try {
-      const bookmarkedNoteIds = await bookmarksService.getUserBookmarks(user.uid);
-      setBookmarkedNotes(new Set(bookmarkedNoteIds));
-    } catch (err) {
-      console.error('Error fetching bookmarks:', err);
-    }
-  };
-
-  const fetchNotes = async (isInitial = false) => {
+  const fetchBookmarkedNotes = async () => {
     if (!user) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      const result = await notesService.fetchSharedWithMe(user.uid, {
-        filters,
-        lastVisible: isInitial ? null : lastVisible,
-        pageSize: 10,
-        sortBy: 'date',
-        sortDirection: 'desc',
+      // Get bookmarked note IDs
+      const bookmarkedNoteIds = await bookmarksService.getUserBookmarks(user.uid);
+      
+      if (bookmarkedNoteIds.length === 0) {
+        setNotes([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch each bookmarked note
+      const bookmarkedNotes = await Promise.all(
+        bookmarkedNoteIds.map(async (noteId) => {
+          try {
+            const note = await notesService.fetchNote(noteId);
+            return { ...note, favorite: true }; // Mark as bookmarked
+          } catch (err) {
+            console.error(`Error fetching note ${noteId}:`, err);
+            return null;
+          }
+        })
+      );
+
+      // Filter out any failed fetches and apply filters
+      let filteredNotes = bookmarkedNotes.filter((note): note is Note => {
+        if (!note) return false;
+        
+        if (filters.type && note.type !== filters.type) return false;
+        if (filters.rating && note.rating !== filters.rating) return false;
+        if (filters.wouldOrderAgain !== undefined && note.wouldOrderAgain !== filters.wouldOrderAgain) return false;
+        if (filters.tags && filters.tags.length > 0 && !filters.tags.some(tag => note.tags.includes(tag))) return false;
+        if (filters.searchTerm) {
+          const term = filters.searchTerm.toLowerCase();
+          const matchesSearch = 
+            note.title.toLowerCase().includes(term) ||
+            note.notes.toLowerCase().includes(term) ||
+            note.tags.some(tag => tag.toLowerCase().includes(term)) ||
+            (note.location?.name?.toLowerCase().includes(term) ?? false);
+          if (!matchesSearch) return false;
+        }
+        
+        return true;
       });
 
-      const newNotes = isInitial ? result.notes : [...notes, ...result.notes];
-      
+      // Sort by date
+      filteredNotes.sort((a, b) => b.date.toMillis() - a.date.toMillis());
+
       // Fetch user information for all note owners
-      await fetchUserInfo(newNotes.map(note => note.userId));
+      await fetchUserInfo(filteredNotes.map(note => note.userId));
 
-      if (isInitial) {
-        setNotes(result.notes);
-        // Extract unique tags from notes
-        const tags = new Set<string>();
-        result.notes.forEach(note => {
-          note.tags.forEach(tag => tags.add(tag));
-        });
-        setAvailableTags(Array.from(tags));
-      } else {
-        setNotes(prev => {
-          const newNotes = [...prev, ...result.notes];
-          // Update available tags with any new ones
-          const tags = new Set<string>(availableTags);
-          result.notes.forEach(note => {
-            note.tags.forEach(tag => tags.add(tag));
-          });
-          setAvailableTags(Array.from(tags));
-          return newNotes;
-        });
-      }
+      setNotes(filteredNotes);
 
-      setLastVisible(result.lastVisible);
-      setHasMore(result.notes.length === 10);
+      // Extract unique tags
+      const tags = new Set<string>();
+      filteredNotes.forEach(note => {
+        note.tags.forEach((tag: string) => tags.add(tag));
+      });
+      setAvailableTags(Array.from(tags));
+
     } catch (err) {
-      console.error('Error in SharedWithMeNotes:', err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Failed to load shared notes. Please try again.');
-      }
+      console.error('Error fetching bookmarked notes:', err);
+      setError('Failed to load bookmarked notes. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchNotes(true);
-    fetchBookmarks();
+    fetchBookmarkedNotes();
   }, [user, filters]);
-
-  const handleLoadMore = () => {
-    fetchNotes(false);
-  };
 
   const handleFiltersChange = (newFilters: NoteFilters) => {
     setFilters(newFilters);
-    setLastVisible(null);
   };
 
   const handleFilterReset = () => {
     setFilters({});
-    setLastVisible(null);
   };
 
   const handleNoteClick = (noteId: string) => {
-    navigate(`/app/notes/${noteId}`, { state: { from: '/app/shared-with-me' } });
+    navigate(`/app/notes/${noteId}`, { state: { from: '/app/bookmarks' } });
   };
 
   const handleBookmarkToggle = async (noteId: string, isBookmarked: boolean) => {
@@ -136,25 +134,18 @@ export const SharedWithMeNotes: React.FC = () => {
     try {
       if (isBookmarked) {
         await bookmarksService.removeBookmark(user.uid, noteId);
-        setBookmarkedNotes(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(noteId);
-          return newSet;
-        });
-      } else {
-        await bookmarksService.addBookmark(user.uid, noteId);
-        setBookmarkedNotes(prev => new Set(prev).add(noteId));
+        setNotes(prev => prev.filter(note => note.id !== noteId));
       }
     } catch (err) {
-      console.error('Error toggling bookmark:', err);
-      setError('Failed to update bookmark. Please try again.');
+      console.error('Error removing bookmark:', err);
+      setError('Failed to remove bookmark. Please try again.');
     }
   };
 
   if (!user) {
     return (
       <div className="min-h-screen bg-[#FDF1ED] flex items-center justify-center">
-        <p className="text-taste-primary/60 text-lg">Please log in to view shared notes.</p>
+        <p className="text-taste-primary/60 text-lg">Please log in to view your bookmarks.</p>
       </div>
     );
   }
@@ -165,8 +156,8 @@ export const SharedWithMeNotes: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h1 className="font-serif text-5xl font-semibold text-[#E76F51] mb-2">Shared Notes</h1>
-              <p className="text-black text-xl">Notes shared with you by others</p>
+              <h1 className="font-serif text-5xl font-semibold text-[#E76F51] mb-2">Bookmarks</h1>
+              <p className="text-black text-xl">Your bookmarked notes</p>
             </div>
           </div>
 
@@ -176,7 +167,7 @@ export const SharedWithMeNotes: React.FC = () => {
               onFiltersChange={handleFiltersChange}
               onReset={handleFilterReset}
               availableTags={availableTags}
-              showUserFilter={true}
+              showUserFilter={false}
             />
           </div>
 
@@ -194,10 +185,7 @@ export const SharedWithMeNotes: React.FC = () => {
             {notes.map(note => (
               <div key={note.id} className="card-hover">
                 <NoteCard
-                  note={{
-                    ...note,
-                    favorite: bookmarkedNotes.has(note.id)
-                  }}
+                  note={note}
                   onClick={() => handleNoteClick(note.id)}
                   onFavoriteToggle={(noteId, favorite) => handleBookmarkToggle(noteId, !favorite)}
                   isBookmarkView={true}
@@ -213,24 +201,13 @@ export const SharedWithMeNotes: React.FC = () => {
             </div>
           )}
 
-          {!isLoading && hasMore && (
-            <div className="flex justify-center mt-8">
-              <Button
-                onClick={handleLoadMore}
-                className="bg-[#E76F51]/10 text-[#E76F51] hover:bg-[#E76F51] hover:text-white transition-colors"
-              >
-                Load More
-              </Button>
-            </div>
-          )}
-
           {!isLoading && notes.length === 0 && (
             <div className="text-center py-12 bg-white/80 rounded-lg shadow-sm border border-[#E76F51]/10">
-              <h3 className="font-serif text-xl font-medium text-[#E76F51] mb-2">No shared notes found</h3>
+              <h3 className="font-serif text-xl font-medium text-[#E76F51] mb-2">No bookmarks found</h3>
               <p className="text-[#E76F51]/70">
                 {Object.keys(filters).length > 0
                   ? 'Try adjusting your filters'
-                  : 'No one has shared any notes with you yet'}
+                  : 'You haven\'t bookmarked any notes yet'}
               </p>
             </div>
           )}

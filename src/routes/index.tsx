@@ -15,6 +15,7 @@ import { UserProfileView } from '../components/profile/UserProfileView';
 import { MyProfileView } from '../components/profile/MyProfileView';
 import { useParams } from 'react-router-dom';
 import { SharedWithMeNotes } from '../components/notes/SharedWithMeNotes';
+import { BookmarkedNotes } from '../components/notes/BookmarkedNotes';
 import ActivityFeedPage from '../pages/ActivityFeed';
 import NotificationsPage from '../pages/Notifications';
 import FriendsPage from '../pages/FriendsPage';
@@ -68,6 +69,10 @@ export const router = createBrowserRouter([
       {
         path: 'shared-with-me',
         element: <SharedWithMeNotes />
+      },
+      {
+        path: 'bookmarks',
+        element: <BookmarkedNotes />
       },
       {
         path: 'restaurants',

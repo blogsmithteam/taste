@@ -2,15 +2,25 @@ import React from 'react';
 import { Note } from '../../services/notes';
 import { FoodRating } from '../shared/FoodRating';
 import { format } from 'date-fns';
-import { MapPinIcon, CalendarIcon, TagIcon } from '@heroicons/react/24/outline';
+import { MapPinIcon, CalendarIcon, TagIcon, UserIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
+import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline';
+import { BookmarkIcon as BookmarkIconSolid } from '@heroicons/react/24/solid';
+import { BookmarkIcon as BookmarkIconOutline } from '@heroicons/react/24/outline';
+import { User } from '../../types/user';
+import { useNavigate } from 'react-router-dom';
 
 interface NoteCardProps {
   note: Note;
   onClick?: () => void;
+  onFavoriteToggle?: (noteId: string, favorite: boolean) => Promise<void>;
+  isBookmarkView?: boolean;
+  sharedByUser?: User;
 }
 
-export const NoteCard: React.FC<NoteCardProps> = ({ note, onClick }) => {
+export const NoteCard: React.FC<NoteCardProps> = ({ note, onClick, onFavoriteToggle, isBookmarkView = false, sharedByUser }) => {
+  const navigate = useNavigate();
+
   // Validate required fields
   if (!note || typeof note !== 'object') {
     console.error('Invalid note data:', note);
@@ -44,6 +54,20 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onClick }) => {
     }
   };
 
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the card click
+    if (onFavoriteToggle) {
+      await onFavoriteToggle(note.id, !safeNote.favorite);
+    }
+  };
+
+  const handleUserClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the card click
+    if (sharedByUser) {
+      navigate(`/app/users/${sharedByUser.id}`);
+    }
+  };
+
   return (
     <div 
       className="bg-white rounded-lg shadow-sm border border-taste-primary/10 p-4 hover:shadow-md transition-shadow cursor-pointer"
@@ -51,12 +75,32 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onClick }) => {
     >
       <div className="flex justify-between items-start">
         <div className="flex-1">
-          <h3 className="text-lg font-medium text-taste-primary mb-1">
-            {safeNote.title}
-            {safeNote.favorite && (
-              <HeartIconSolid className="h-5 w-5 text-red-500 inline-block ml-2" />
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-lg font-medium text-taste-primary">
+              {safeNote.title}
+            </h3>
+            {onFavoriteToggle && (
+              <button
+                onClick={handleFavoriteClick}
+                className="flex items-center p-1 rounded-full hover:bg-gray-100 transition-colors"
+                aria-label={safeNote.favorite ? (isBookmarkView ? 'Remove bookmark' : 'Remove from favorites') : (isBookmarkView ? 'Add bookmark' : 'Add to favorites')}
+              >
+                {isBookmarkView ? (
+                  safeNote.favorite ? (
+                    <BookmarkIconSolid className="h-5 w-5 text-blue-500" />
+                  ) : (
+                    <BookmarkIconOutline className="h-5 w-5 text-gray-400 hover:text-blue-500" />
+                  )
+                ) : (
+                  safeNote.favorite ? (
+                    <HeartIconSolid className="h-5 w-5 text-red-500" />
+                  ) : (
+                    <HeartIconOutline className="h-5 w-5 text-gray-400 hover:text-red-500" />
+                  )
+                )}
+              </button>
             )}
-          </h3>
+          </div>
           {safeNote.type === 'restaurant' && safeNote.location && (
             <div className="flex items-center text-gray-600 text-sm mt-1">
               <MapPinIcon className="h-4 w-4 mr-1" />
@@ -98,17 +142,25 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onClick }) => {
             {safeNote.wouldOrderAgain ? 'Would order again' : 'Would not order again'}
           </span>
         </div>
-        <div className="flex items-center">
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            safeNote.visibility === 'private' 
-              ? 'bg-gray-100 text-gray-800'
-              : safeNote.visibility === 'friends'
-              ? 'bg-blue-100 text-blue-800'
-              : 'bg-green-100 text-green-800'
-          }`}>
-            {safeNote.visibility}
-          </span>
-        </div>
+        {sharedByUser && (
+          <button
+            onClick={handleUserClick}
+            className="flex items-center text-gray-600 hover:text-taste-primary transition-colors text-sm"
+          >
+            {sharedByUser.photoURL ? (
+              <img
+                src={sharedByUser.photoURL}
+                alt={sharedByUser.username}
+                className="h-6 w-6 rounded-full mr-2"
+              />
+            ) : (
+              <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center mr-2">
+                <span className="text-gray-500 text-xs">{sharedByUser.username[0].toUpperCase()}</span>
+              </div>
+            )}
+            <span>{sharedByUser.username}</span>
+          </button>
+        )}
       </div>
     </div>
   );

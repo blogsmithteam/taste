@@ -86,6 +86,23 @@ export const TastingNotes: React.FC = () => {
     navigate(`/app/notes/${noteId}`, { state: { from: '/app/tasting-notes' } });
   };
 
+  const handleFavoriteToggle = async (noteId: string, favorite: boolean) => {
+    if (!user) return;
+
+    try {
+      await notesService.updateNote(noteId, user.uid, { favorite });
+      // Update the notes state to reflect the change
+      setNotes(prevNotes =>
+        prevNotes.map(note =>
+          note.id === noteId ? { ...note, favorite } : note
+        )
+      );
+    } catch (err) {
+      console.error('Error updating favorite status:', err);
+      setError('Failed to update favorite status. Please try again.');
+    }
+  };
+
   return (
     <div>
       <div className="container mx-auto px-4 py-8 animate-fade-in">
@@ -130,6 +147,7 @@ export const TastingNotes: React.FC = () => {
                 <NoteCard
                   note={note}
                   onClick={() => handleNoteClick(note.id)}
+                  onFavoriteToggle={handleFavoriteToggle}
                 />
               </div>
             ))}

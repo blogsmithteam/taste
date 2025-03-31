@@ -880,5 +880,28 @@ export const notesService = {
       console.error('Error in getUserNotes:', error);
       throw new Error('Failed to fetch user notes');
     }
+  },
+
+  async fetchNote(noteId: string): Promise<Note> {
+    try {
+      const noteRef = doc(db, 'notes', noteId);
+      const noteDoc = await getDoc(noteRef);
+
+      if (!noteDoc.exists()) {
+        throw new Error('Note not found');
+      }
+
+      const data = noteDoc.data();
+      return {
+        id: noteDoc.id,
+        ...data,
+        date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+      } as Note;
+    } catch (error) {
+      console.error('Error fetching note:', error);
+      throw new Error('Failed to fetch note');
+    }
   }
 }; 
