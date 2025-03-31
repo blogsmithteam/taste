@@ -6,6 +6,9 @@ import { FamilyButton } from './FamilyButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LinkIcon } from '@heroicons/react/24/outline';
+import { format } from 'date-fns';
+import { notesService, Note } from '../../services/notes';
+import { StarIcon } from '@heroicons/react/24/outline';
 
 interface UserProfileViewProps {
   userId: string;
@@ -24,6 +27,8 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
   const [loadingFollowing, setLoadingFollowing] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
   const [loadingFamily, setLoadingFamily] = useState(false);
+  const [recentNotes, setRecentNotes] = useState<Note[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -84,10 +89,28 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
       }
     };
 
+    const fetchRecentNotes = async () => {
+      if (!profile || !user) return;
+      
+      // Only fetch notes if we're following this user
+      if (!profile.followers?.includes(user.uid)) return;
+
+      try {
+        setLoadingNotes(true);
+        const notes = await notesService.fetchUserFriendsNotes(userId);
+        setRecentNotes(notes);
+      } catch (err) {
+        console.error('Error loading recent notes:', err);
+      } finally {
+        setLoadingNotes(false);
+      }
+    };
+
     fetchFollowers();
     fetchFollowing();
     fetchFamilyMembers();
-  }, [userId, profile]);
+    fetchRecentNotes();
+  }, [userId, profile, user]);
 
   const handleCopyProfileLink = async () => {
     const profileUrl = `${window.location.origin}/app/users/${userId}`;
@@ -318,6 +341,70 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
               )}
             </div>
           </div>
+
+          {/* Recent Notes Section */}
+          {recentNotes.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="font-serif text-2xl font-semibold text-[#E76F51]">Recent Notes</h2>
+                  <button
+                    onClick={() => navigate(`/app/users/${userId}/notes`)}
+                    className="text-[#E76F51] hover:text-[#E76F51]/80 text-sm font-medium"
+                  >
+                    View All
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {recentNotes.map(note => (
+                    <div
+                      key={note.id}
+                      onClick={() => navigate(`/app/notes/${note.id}`)}
+                      className="cursor-pointer group"
+                    >
+                      <div className="bg-white rounded-lg border border-gray-100 p-4 transition-all duration-200 hover:border-[#E76F51]/20 hover:shadow-sm">
+                        <h3 className="font-medium text-gray-900 group-hover:text-[#E76F51] transition-colors">
+                          {note.title}
+                        </h3>
+                        <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
+                          <time dateTime={note.date.toDate().toISOString()}>
+                            {format(note.date.toDate(), 'MMM d, yyyy')}
+                          </time>
+                          <div className="flex items-center">
+                            {[...Array(5)].map((_, index) => (
+                              <StarIcon
+                                key={index}
+                                className={`h-4 w-4 ${
+                                  index < note.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        {note.tags.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {note.tags.slice(0, 3).map(tag => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {note.tags.length > 3 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                +{note.tags.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Toast notification for copied link */}

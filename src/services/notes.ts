@@ -703,5 +703,33 @@ export const notesService = {
       }
       throw new Error('Failed to fetch shared notes: Unknown error');
     }
+  },
+
+  async fetchUserFriendsNotes(userId: string, pageSize: number = 4): Promise<Note[]> {
+    try {
+      const constraints: QueryConstraint[] = [
+        where('userId', '==', userId),
+        where('visibility', '==', 'friends'),
+        orderBy('createdAt', 'desc'),
+        limit(pageSize)
+      ];
+
+      const q = query(collection(db, 'notes'), ...constraints);
+      const snapshot = await getDocs(q);
+
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+        } as Note;
+      });
+    } catch (error) {
+      console.error('Error in fetchUserFriendsNotes:', error);
+      throw new Error('Failed to fetch user notes');
+    }
   }
 }; 

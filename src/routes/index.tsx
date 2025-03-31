@@ -21,6 +21,7 @@ import FriendsPage from '../pages/FriendsPage';
 import FamilyPage from '../pages/FamilyPage';
 import FollowersPage from '../pages/FollowersPage';
 import FollowingPage from '../pages/FollowingPage';
+import UserNotesPage from '../pages/UserNotesPage';
 
 // Wrapper component to pass userId from URL params
 const UserProfileViewWrapper = () => {
@@ -116,6 +117,10 @@ export const router = createBrowserRouter([
       {
         path: 'users/:userId/family',
         element: <FamilyPage />
+      },
+      {
+        path: 'users/:userId/notes',
+        element: <UserNotesPage />
       },
       {
         path: 'notifications',
