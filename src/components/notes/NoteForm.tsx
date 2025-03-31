@@ -44,6 +44,8 @@ interface NoteFormData {
   favorite: boolean;
   visibility: 'private' | 'friends' | 'public';
   photos: string[];
+  recipeUrl?: string;
+  shareRecipe?: boolean;
 }
 
 interface FormErrors {
@@ -85,7 +87,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
       name: initialNote?.location?.name || '',
       address: initialNote?.location?.address || '',
       coordinates: initialNote?.location?.coordinates
-    }
+    },
+    recipeUrl: initialNote?.recipeUrl || '',
+    shareRecipe: initialNote?.shareRecipe ?? false
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -243,14 +247,23 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
         type: creator.type,
         url: creator.url
       };
-      setFormData(prev => ({ ...prev, recipeCreator }));
+      setFormData(prev => ({ 
+        ...prev, 
+        recipeCreator,
+        // If it's a website, automatically add the URL to the recipeUrl field if available
+        ...(creator.type === 'website' && creator.url ? { recipeUrl: creator.url } : {})
+      }));
     } else {
       // New creator being added
       try {
         const type = creator.type ?? defaultType;
+        // Only pass defined URL to the service
+        const url = creator.url !== undefined ? creator.url : undefined;
+        
         const newCreator = await recipeCreatorsService.addRecipeCreator(
           creator.name,
-          type
+          type,
+          url
         );
         const recipeCreator: RecipeCreatorFormData = {
           id: newCreator.id,
@@ -258,7 +271,12 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
           type: newCreator.type,
           url: newCreator.url
         };
-        setFormData(prev => ({ ...prev, recipeCreator }));
+        setFormData(prev => ({
+          ...prev, 
+          recipeCreator,
+          // If it's a website, set the URL field if available
+          ...(type === 'website' && newCreator.url ? { recipeUrl: newCreator.url } : {})
+        }));
       } catch (error) {
         console.error('Error adding recipe creator:', error);
         const recipeCreator: RecipeCreatorFormData = {
@@ -282,7 +300,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
 
       return {
         ...prev,
-        recipeCreator: updatedCreator
+        recipeCreator: updatedCreator,
+        // Clear the recipeUrl if changing from website to another type
+        ...(prev.recipeCreator?.type === 'website' && newType !== 'website' ? { recipeUrl: '' } : {})
       };
     });
   }, []);
@@ -344,7 +364,10 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
           ...(formData.location.coordinates?.latitude != null && formData.location.coordinates?.longitude != null
             ? { coordinates: formData.location.coordinates }
             : {})
-        }
+        },
+        // Include recipe-specific fields only if they have values
+        ...(formData.recipeUrl ? { recipeUrl: formData.recipeUrl } : {}),
+        ...(formData.shareRecipe ? { shareRecipe: formData.shareRecipe } : {})
       };
 
       if (formData.type === 'restaurant' && formData.location?.name) {
@@ -357,10 +380,21 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
         }
       } else if (formData.type === 'recipe' && formData.recipeCreator?.name) {
         try {
+          // Only pass url if it's defined
+          const creatorType = formData.recipeCreator.type || 'person';
+          let creatorUrl: string | undefined = undefined;
+          
+          // Only include URL for website type creators or if URL is explicitly provided
+          if (creatorType === 'website') {
+            creatorUrl = formData.recipeUrl || undefined; // Use the recipeUrl field or undefined
+          } else if (formData.recipeCreator.url) {
+            creatorUrl = formData.recipeCreator.url;
+          }
+          
           await recipeCreatorsService.addRecipeCreator(
             formData.recipeCreator.name,
-            formData.recipeCreator.type,
-            formData.recipeCreator.url
+            creatorType,
+            creatorUrl
           );
         } catch (creatorError) {
           console.error('Error adding recipe creator:', creatorError);
@@ -405,15 +439,30 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
             <label className="block text-base font-semibold text-gray-800 mb-2">
               Type of Note
             </label>
-            <select
-              name="type"
-              value={formData.type}
-              onChange={handleChange}
-              className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-taste-primary focus:ring-taste-primary text-base"
-            >
-              <option value="restaurant">Restaurant</option>
-              <option value="recipe">Recipe</option>
-            </select>
+            <div className="flex rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+              <button
+                type="button"
+                onClick={() => handleChange({ target: { name: 'type', value: 'restaurant' } } as any)}
+                className={`flex-1 py-2 px-4 text-center transition-colors ${
+                  formData.type === 'restaurant' 
+                    ? 'bg-taste-primary text-white font-medium' 
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Restaurant
+              </button>
+              <button
+                type="button"
+                onClick={() => handleChange({ target: { name: 'type', value: 'recipe' } } as any)}
+                className={`flex-1 py-2 px-4 text-center transition-colors ${
+                  formData.type === 'recipe' 
+                    ? 'bg-taste-primary text-white font-medium' 
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Recipe
+              </button>
+            </div>
           </div>
 
           <div>
@@ -473,17 +522,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
 
         {formData.type === 'recipe' && (
           <div className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6 space-y-6">
-            <FormInput
-              label="What did you make?"
-              type="text"
-              name="title"
-              required
-              value={formData.title}
-              onChange={handleChange}
-              error={errors.title}
-              placeholder="e.g., Homemade Lasagna"
-            />
-
             <Autocomplete
               label="Recipe Creator"
               value={formData.recipeCreator?.name || ''}
@@ -498,6 +536,18 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               allowNew
               newItemLabel="Add new recipe creator"
               placeholder="e.g., Alison Roman, NYT Cooking"
+            />
+
+            <FormInput
+              label="What did you make?"
+              type="text"
+              name="title"
+              required
+              value={formData.title}
+              onChange={handleChange}
+              error={errors.title}
+              placeholder="e.g., Homemade Lasagna"
+              className="text-lg font-medium"
             />
 
             <div>
@@ -519,18 +569,15 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               </select>
             </div>
 
-            {formData.recipeCreator?.type === 'website' && (
-              <FormInput
-                label="Website URL"
-                type="url"
-                value={formData.recipeCreator?.url || ''}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  recipeCreator: { ...prev.recipeCreator, url: e.target.value }
-                }))}
-                placeholder="e.g., https://cooking.nytimes.com"
-              />
-            )}
+            <FormInput
+              label="Recipe URL (optional)"
+              type="url"
+              name="recipeUrl"
+              value={formData.recipeUrl || ''}
+              onChange={handleChange}
+              placeholder="e.g., https://cooking.nytimes.com/recipes/lasagna"
+              helperText="Link to the original recipe"
+            />
           </div>
         )}
 
@@ -601,7 +648,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
 
           <div>
             <Checkbox
-              label={`Would ${formData.type === 'restaurant' ? 'order' : 'make'} again`}
+              label={`Would eat again?`}
               name="wouldOrderAgain"
               checked={formData.wouldOrderAgain}
               onChange={(e) => setFormData(prev => ({

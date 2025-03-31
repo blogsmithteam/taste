@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Notes and improvements fields
   - Would order again option
   - Firebase integration for data persistence
+- Enhanced recipe functionality in the Create Note form
+- Added prominent "Recipe Creator" section with "What did you make?" field
+- Added optional Recipe URL field to link to original recipes
+- Added ability to share recipes with friends regardless of visibility settings
 
 ### Changed
 - Updated project description to reflect generic tasting notes functionality

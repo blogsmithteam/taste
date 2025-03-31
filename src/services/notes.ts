@@ -30,6 +30,8 @@ export interface Note {
   sharedWith: string[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  recipeUrl?: string;
+  shareRecipe?: boolean;
 }
 
 export interface CreateNoteData {
@@ -53,6 +55,8 @@ export interface CreateNoteData {
   favorite: boolean;
   visibility: 'private' | 'friends' | 'public';
   photos: string[];
+  recipeUrl?: string;
+  shareRecipe?: boolean;
 }
 
 export interface UpdateNoteData extends CreateNoteData {
@@ -169,6 +173,8 @@ export const notesService = {
       userId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      recipeUrl: data.recipeUrl,
+      shareRecipe: data.shareRecipe,
     };
 
     try {

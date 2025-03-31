@@ -184,4 +184,21 @@ The application uses Firebase Authentication with the following features:
 - [TypeScript Documentation](https://www.typescriptlang.org/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 - [Firebase Documentation](https://firebase.google.com/docs)
-- [Firebase Authentication Documentation](https://firebase.google.com/docs/auth) 
+- [Firebase Authentication Documentation](https://firebase.google.com/docs/auth)
+
+## Creating a Recipe Note
+
+To create a recipe note:
+
+1. Navigate to the "Create Note" page
+2. Select "Recipe" as the note type
+3. In the "Recipe Creator" section:
+   - Enter what you made in the "What did you make?" field
+   - Add the recipe creator (person, website, or cookbook)
+   - Select the creator type
+   - If from a website, add the recipe URL (optional)
+4. Choose whether to share this recipe with friends (regardless of visibility settings)
+5. Add your rating, notes, tags, and photos
+6. Save your recipe note
+
+Recipe notes can be shared more widely than other notes if you enable the "Share this recipe with friends" option, which allows friends to view it even when your general note visibility is set to private. 

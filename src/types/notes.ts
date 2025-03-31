@@ -30,4 +30,6 @@ export interface Note {
   sharedWith: string[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  recipeUrl?: string;
+  shareRecipe?: boolean;
 } 

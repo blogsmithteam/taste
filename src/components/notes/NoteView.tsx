@@ -148,6 +148,88 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
         </div>
       )}
 
+      {/* Recipe Creator and URL (if recipe) */}
+      {safeNote.type === 'recipe' && (
+        <div className="mb-8 flex items-start gap-2 text-gray-600">
+          <PencilSquareIcon className="h-5 w-5 flex-shrink-0 mt-0.5 text-taste-primary" />
+          <div>
+            {safeNote.recipeUrl ? (
+              // If we have a recipe URL, show it as a hyperlink
+              <>
+                <h2 className="font-medium text-gray-900">
+                  Recipe by{' '}
+                  <a 
+                    href={safeNote.recipeUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-taste-primary hover:underline"
+                  >
+                    {(() => {
+                      // Since recipe creator information is stored separately and not directly
+                      // in the note, we'll use heuristics to extract it from available data
+                      
+                      // Try to extract from "Title by Creator" format
+                      const byMatch = safeNote.title.match(/\s+by\s+(.+)$/i);
+                      if (byMatch && byMatch[1]) return byMatch[1];
+                      
+                      // Try to extract from "Creator's Title" format
+                      const possessiveMatch = safeNote.title.match(/^([^']+)'s\s+.+$/i);
+                      if (possessiveMatch && possessiveMatch[1]) return possessiveMatch[1];
+                      
+                      // If all else fails, try to extract domain from URL
+                      try {
+                        const url = new URL(safeNote.recipeUrl);
+                        const domain = url.hostname.replace(/^www\./i, '');
+                        
+                        // Handle common recipe sites
+                        if (domain.includes('sallybakingaddiction')) return "Sally's Baking Addiction";
+                        if (domain.includes('allrecipes')) return "AllRecipes";
+                        if (domain.includes('foodnetwork')) return "Food Network";
+                        if (domain.includes('epicurious')) return "Epicurious";
+                        if (domain.includes('bonappetit')) return "Bon Appétit";
+                        if (domain.includes('cooking.nytimes')) return "NYT Cooking";
+                        
+                        // General domain formatting
+                        return domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
+                      } catch (e) {
+                        // URL parsing failed, return generic text
+                        return 'Original Source';
+                      }
+                    })()}
+                  </a>
+                </h2>
+                <p className="text-sm text-gray-500">
+                  <a 
+                    href={safeNote.recipeUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:text-taste-primary transition-colors"
+                  >
+                    View original recipe
+                  </a>
+                </p>
+              </>
+            ) : (
+              // If no recipe URL, try to extract creator information from the title
+              <h2 className="font-medium text-gray-900">
+                {(() => {
+                  // Try to extract from "Title by Creator" format
+                  const byMatch = safeNote.title.match(/\s+by\s+(.+)$/i);
+                  if (byMatch && byMatch[1]) return `Recipe by ${byMatch[1]}`;
+                  
+                  // Try to extract from "Creator's Title" format
+                  const possessiveMatch = safeNote.title.match(/^([^']+)'s\s+.+$/i);
+                  if (possessiveMatch && possessiveMatch[1]) return `Recipe by ${possessiveMatch[1]}`;
+                  
+                  // If we can't extract anything, just show "Recipe"
+                  return "Recipe";
+                })()}
+              </h2>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Photos Grid */}
       {safeNote.photos.length > 0 && (
         <div className="mb-8">
@@ -190,7 +272,7 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
       <div>
         <h2 className="text-xl font-serif text-gray-900 mb-4">Final Verdict</h2>
         <p className="flex items-center gap-2">
-          <span className="text-gray-600">Would eat here again:</span>
+          <span className="text-gray-600">Would eat again?</span>
           <span className={`font-medium ${safeNote.wouldOrderAgain ? 'text-green-600' : 'text-red-600'}`}>
             {safeNote.wouldOrderAgain ? 'Yes!' : 'No'}
           </span>

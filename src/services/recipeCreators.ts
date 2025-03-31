@@ -55,19 +55,27 @@ export const recipeCreatorsService = {
     try {
       console.log('Adding recipe creator:', { name, type, url });
       const now = serverTimestamp();
-      const docRef = await addDoc(collection(db, 'recipeCreators'), {
+      
+      // Create document data object without the url field first
+      const docData: any = {
         name: name.trim(),
         type,
-        url,
         createdAt: now,
         updatedAt: now
-      });
+      };
+      
+      // Only add the url field if it's a non-undefined value
+      if (url !== undefined) {
+        docData.url = url || null; // Convert empty strings to null
+      }
+      
+      const docRef = await addDoc(collection(db, 'recipeCreators'), docData);
 
       return {
         id: docRef.id,
         name: name.trim(),
         type,
-        url,
+        url: url || undefined, // Keep the return type consistent with the interface
         createdAt: new Date(),
         updatedAt: new Date()
       };
