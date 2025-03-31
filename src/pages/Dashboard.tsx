@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { notesService } from '../services/notes';
+import { notesService, Note } from '../services/notes';
 import { DashboardStats } from '../components/dashboard/DashboardStats';
 import { ActivityFeed, ActivityItem } from '../components/dashboard/ActivityFeed';
-import { Button } from '../components/auth/shared/Button';
-import { PlusIcon } from '@heroicons/react/24/outline';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -33,8 +31,8 @@ export const Dashboard: React.FC = () => {
         const now = new Date();
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         
-        const restaurantNotes = notes.filter(note => note.type === 'restaurant');
-        const notesThisMonth = notes.filter(note => note.date.toDate() >= firstDayOfMonth);
+        const restaurantNotes = notes.filter((note: Note) => note.type === 'restaurant');
+        const notesThisMonth = notes.filter((note: Note) => note.date.toDate() >= firstDayOfMonth);
         const lastNote = notes[0]; // Assuming notes are sorted by date desc
 
         setStats({
@@ -48,12 +46,14 @@ export const Dashboard: React.FC = () => {
         // Fetch recent activities
         const recentActivities: ActivityItem[] = notes
           .slice(0, 3)
-          .map(note => ({
+          .map((note: Note) => ({
             type: 'added',
             item: {
+              id: note.id,
               title: note.title,
               rating: note.rating,
-              date: note.date.toDate()
+              date: note.date.toDate(),
+              itemType: note.type
             }
           }));
 
@@ -88,22 +88,6 @@ export const Dashboard: React.FC = () => {
                 Welcome back, {user.displayName?.split(' ')[0] || 'Friend'}
               </h1>
               <p className="text-black text-xl">Your culinary journey at a glance</p>
-            </div>
-            <div className="flex gap-4">
-              <Button
-                onClick={() => navigate('/app/create-note?type=restaurant')}
-                variant="secondary"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                New Restaurant Note
-              </Button>
-              <Button
-                onClick={() => navigate('/app/create-note?type=recipe')}
-                variant="primary"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                New Recipe Note
-              </Button>
             </div>
           </div>
 

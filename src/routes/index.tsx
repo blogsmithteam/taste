@@ -22,6 +22,7 @@ import FamilyPage from '../pages/FamilyPage';
 import FollowersPage from '../pages/FollowersPage';
 import FollowingPage from '../pages/FollowingPage';
 import UserNotesPage from '../pages/UserNotesPage';
+import { Dashboard } from '../pages/Dashboard';
 
 // Wrapper component to pass userId from URL params
 const UserProfileViewWrapper = () => {
@@ -56,7 +57,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '',
-        element: <TastingNotes />
+        element: <Dashboard />
       },
       {
         path: 'tasting-notes',

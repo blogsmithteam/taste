@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon, ArrowRightOnRectangleIcon, UsersIcon, ShareIcon, ChartBarIcon, UserGroupIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { BookOpenIcon, UserIcon, Bars3Icon, XMarkIcon, PlusIcon, ArrowRightOnRectangleIcon, UsersIcon, ShareIcon, ChartBarIcon, UserGroupIcon, MagnifyingGlassIcon, HomeIcon } from '@heroicons/react/24/outline';
 import { BellIcon } from '@heroicons/react/24/solid';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -106,6 +106,7 @@ const Navigation = () => {
       path: '/app/profile/edit', 
       icon: UserIcon,
       dropdownItems: [
+        { path: '/app', label: 'Dashboard', icon: HomeIcon },
         { path: '/app/users/me', label: 'View Profile', icon: UserIcon },
         { path: '/app/profile/edit', label: 'Edit Profile', icon: UserIcon },
         { path: '#', label: 'Logout', icon: ArrowRightOnRectangleIcon, onClick: handleSignOut },
