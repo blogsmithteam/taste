@@ -110,6 +110,7 @@ export const TastingNotes: React.FC = () => {
               onFiltersChange={handleFiltersChange}
               onReset={handleFilterReset}
               availableTags={availableTags}
+              showUserFilter={false}
             />
           </div>
 

@@ -15,6 +15,7 @@ interface NoteFiltersProps {
   onFiltersChange: (filters: NoteFilters) => void;
   onReset: () => void;
   availableTags: string[];
+  showUserFilter?: boolean;
 }
 
 export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
@@ -22,6 +23,7 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
   onFiltersChange,
   onReset,
   availableTags,
+  showUserFilter = false,
 }) => {
   const { user } = useAuth();
   const [followedUsers, setFollowedUsers] = useState<User[]>([]);
@@ -29,7 +31,7 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
 
   useEffect(() => {
     const fetchFollowedUsers = async () => {
-      if (!user) return;
+      if (!user || !showUserFilter) return;
 
       try {
         setIsLoadingUsers(true);
@@ -56,7 +58,7 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
     };
 
     fetchFollowedUsers();
-  }, [user]);
+  }, [user, showUserFilter]);
 
   const handleChange = (
     name: keyof NoteFilters,
@@ -116,23 +118,25 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
       {/* Filter Row */}
       <div className="flex flex-wrap gap-6 items-end">
         {/* User Filter */}
-        <div className="w-64">
-          <label className="block text-sm font-medium text-taste-primary mb-1.5">
-            Filter by User
-          </label>
-          <select
-            value={filters.userId || ''}
-            onChange={(e) => handleChange('userId', e.target.value || undefined)}
-            className="w-full rounded-lg border border-taste-primary/20 bg-white px-4 py-2 focus:border-taste-primary focus:outline-none focus:ring-1 focus:ring-taste-primary text-taste-primary"
-          >
-            <option value="">All Users</option>
-            {followedUsers.map((followedUser) => (
-              <option key={followedUser.id} value={followedUser.id}>
-                {followedUser.username}
-              </option>
-            ))}
-          </select>
-        </div>
+        {showUserFilter && (
+          <div className="w-64">
+            <label className="block text-sm font-medium text-taste-primary mb-1.5">
+              Filter by User
+            </label>
+            <select
+              value={filters.userId || ''}
+              onChange={(e) => handleChange('userId', e.target.value || undefined)}
+              className="w-full rounded-lg border border-taste-primary/20 bg-white px-4 py-2 focus:border-taste-primary focus:outline-none focus:ring-1 focus:ring-taste-primary text-taste-primary"
+            >
+              <option value="">All Users</option>
+              {followedUsers.map((followedUser) => (
+                <option key={followedUser.id} value={followedUser.id}>
+                  {followedUser.username}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="w-40">
           <FormInput

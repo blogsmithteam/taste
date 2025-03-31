@@ -9,6 +9,7 @@ import { LinkIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { notesService, Note } from '../../services/notes';
 import { StarIcon } from '@heroicons/react/24/outline';
+import { NoteCard } from '../notes/NoteCard';
 
 interface UserProfileViewProps {
   userId: string;
@@ -29,6 +30,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
   const [loadingFamily, setLoadingFamily] = useState(false);
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   const [loadingNotes, setLoadingNotes] = useState(false);
+  const [restaurantFilter, setRestaurantFilter] = useState('');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -89,18 +91,21 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
       }
     };
 
-    const fetchRecentNotes = async () => {
+    const fetchUserNotes = async () => {
       if (!profile || !user) return;
       
-      // Only fetch notes if we're following this user
-      if (!profile.followers?.includes(user.uid)) return;
+      // Only fetch notes if we're following this user or if it's our own profile
+      if (userId !== user.uid && !profile.followers?.includes(user.uid)) return;
 
       try {
         setLoadingNotes(true);
-        const notes = await notesService.fetchUserFriendsNotes(userId);
+        const { notes } = await notesService.fetchNotes(userId, {
+          sortBy: 'date',
+          sortDirection: 'desc'
+        });
         setRecentNotes(notes);
       } catch (err) {
-        console.error('Error loading recent notes:', err);
+        console.error('Error loading notes:', err);
       } finally {
         setLoadingNotes(false);
       }
@@ -109,7 +114,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
     fetchFollowers();
     fetchFollowing();
     fetchFamilyMembers();
-    fetchRecentNotes();
+    fetchUserNotes();
   }, [userId, profile, user]);
 
   const handleCopyProfileLink = async () => {
@@ -125,6 +130,10 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
 
   const handleUserClick = (userId: string) => {
     navigate(`/app/users/${userId}`);
+  };
+
+  const handleNoteClick = (noteId: string) => {
+    navigate(`/app/notes/${noteId}`);
   };
 
   if (loading) {
@@ -342,6 +351,62 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
             </div>
           </div>
 
+          {/* Favorites Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-serif text-2xl font-semibold text-[#E76F51]">Favorites</h2>
+              </div>
+
+              {/* Restaurant Search Filter */}
+              <div className="mb-6">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search by restaurant..."
+                    value={restaurantFilter}
+                    onChange={(e) => setRestaurantFilter(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E76F51]/50 focus:border-transparent"
+                  />
+                  {restaurantFilter && (
+                    <button
+                      onClick={() => setRestaurantFilter('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {recentNotes
+                .filter(note => note.favorite)
+                .filter(note => 
+                  !restaurantFilter || 
+                  note.location?.name?.toLowerCase().includes(restaurantFilter.toLowerCase())
+                ).length === 0 ? (
+                <p className="text-gray-500 mt-4">
+                  {restaurantFilter ? 'No favorites found for this restaurant' : 'No favorite notes yet'}
+                </p>
+              ) : (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {recentNotes
+                    .filter(note => note.favorite)
+                    .filter(note => 
+                      !restaurantFilter || 
+                      note.location?.name?.toLowerCase().includes(restaurantFilter.toLowerCase())
+                    )
+                    .slice(0, 6)
+                    .map(note => (
+                      <div key={note.id} onClick={() => handleNoteClick(note.id)} className="card-hover">
+                        <NoteCard note={note} />
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Recent Notes Section */}
           {recentNotes.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
@@ -356,51 +421,54 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {recentNotes.map(note => (
-                    <div
-                      key={note.id}
-                      onClick={() => navigate(`/app/notes/${note.id}`)}
-                      className="cursor-pointer group"
-                    >
-                      <div className="bg-white rounded-lg border border-gray-100 p-4 transition-all duration-200 hover:border-[#E76F51]/20 hover:shadow-sm">
-                        <h3 className="font-medium text-gray-900 group-hover:text-[#E76F51] transition-colors">
-                          {note.title}
-                        </h3>
-                        <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
-                          <time dateTime={note.date.toDate().toISOString()}>
-                            {format(note.date.toDate(), 'MMM d, yyyy')}
-                          </time>
-                          <div className="flex items-center">
-                            {[...Array(5)].map((_, index) => (
-                              <StarIcon
-                                key={index}
-                                className={`h-4 w-4 ${
-                                  index < note.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                                }`}
-                              />
-                            ))}
+                  {recentNotes
+                    .filter(note => !note.favorite)
+                    .slice(0, 4)
+                    .map(note => (
+                      <div
+                        key={note.id}
+                        onClick={() => handleNoteClick(note.id)}
+                        className="cursor-pointer group"
+                      >
+                        <div className="bg-white rounded-lg border border-gray-100 p-4 transition-all duration-200 hover:border-[#E76F51]/20 hover:shadow-sm">
+                          <h3 className="font-medium text-gray-900 group-hover:text-[#E76F51] transition-colors">
+                            {note.title}
+                          </h3>
+                          <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
+                            <time dateTime={note.date.toDate().toISOString()}>
+                              {format(note.date.toDate(), 'MMM d, yyyy')}
+                            </time>
+                            <div className="flex items-center">
+                              {[...Array(5)].map((_, index) => (
+                                <StarIcon
+                                  key={index}
+                                  className={`h-4 w-4 ${
+                                    index < note.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
                           </div>
+                          {note.tags.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {note.tags.slice(0, 3).map(tag => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {note.tags.length > 3 && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                  +{note.tags.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        {note.tags.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {note.tags.slice(0, 3).map(tag => (
-                              <span
-                                key={tag}
-                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                            {note.tags.length > 3 && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                +{note.tags.length - 3}
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </div>
             </div>

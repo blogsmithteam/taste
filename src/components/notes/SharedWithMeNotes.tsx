@@ -114,6 +114,7 @@ export const SharedWithMeNotes: React.FC = () => {
               onFiltersChange={handleFiltersChange}
               onReset={handleFilterReset}
               availableTags={availableTags}
+              showUserFilter={true}
             />
           </div>
 
