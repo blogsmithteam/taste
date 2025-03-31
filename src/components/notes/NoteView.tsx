@@ -2,6 +2,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import { StarIcon, MapPinIcon, PencilSquareIcon, TrashIcon, ShareIcon } from '@heroicons/react/24/outline';
 import { Note } from '../../types/notes';
+import { useNavigate } from 'react-router-dom';
 
 interface NoteViewProps {
   note: Note;
@@ -11,6 +12,8 @@ interface NoteViewProps {
 }
 
 const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) => {
+  const navigate = useNavigate();
+
   if (!note || typeof note !== 'object') {
     console.error('Invalid note data:', note);
     return (
@@ -122,12 +125,18 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
 
       {/* Location (if restaurant) */}
       {safeNote.type === 'restaurant' && safeNote.location && (
-        <div className="mb-8 flex items-start gap-2 text-gray-600">
-          <MapPinIcon className="h-5 w-5 flex-shrink-0 mt-0.5" />
+        <div 
+          className="mb-8 flex items-start gap-2 text-gray-600 cursor-pointer hover:text-taste-primary transition-colors group"
+          onClick={() => {
+            if (!safeNote.location) return;
+            navigate(`/app/restaurants/${encodeURIComponent(safeNote.location.name)}`);
+          }}
+        >
+          <MapPinIcon className="h-5 w-5 flex-shrink-0 mt-0.5 group-hover:text-taste-primary transition-colors" />
           <div>
-            <h2 className="font-medium text-gray-900">{safeNote.location.name}</h2>
+            <h2 className="font-medium text-gray-900 group-hover:text-taste-primary transition-colors">{safeNote.location.name}</h2>
             {safeNote.location.address && (
-              <p className="text-sm">{safeNote.location.address}</p>
+              <p className="text-sm group-hover:text-taste-primary/80 transition-colors">{safeNote.location.address}</p>
             )}
           </div>
         </div>

@@ -24,6 +24,7 @@ import FollowingPage from '../pages/FollowingPage';
 import UserNotesPage from '../pages/UserNotesPage';
 import { Dashboard } from '../pages/Dashboard';
 import RestaurantsPage from '../pages/RestaurantsPage';
+import RestaurantPage from '../pages/RestaurantPage';
 
 // Wrapper component to pass userId from URL params
 const UserProfileViewWrapper = () => {
@@ -71,6 +72,10 @@ export const router = createBrowserRouter([
       {
         path: 'restaurants',
         element: <RestaurantsPage />
+      },
+      {
+        path: 'restaurants/:restaurantId',
+        element: <RestaurantPage />
       },
       {
         path: 'activity',
