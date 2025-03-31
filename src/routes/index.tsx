@@ -23,6 +23,7 @@ import FollowersPage from '../pages/FollowersPage';
 import FollowingPage from '../pages/FollowingPage';
 import UserNotesPage from '../pages/UserNotesPage';
 import { Dashboard } from '../pages/Dashboard';
+import RestaurantsPage from '../pages/RestaurantsPage';
 
 // Wrapper component to pass userId from URL params
 const UserProfileViewWrapper = () => {
@@ -66,6 +67,10 @@ export const router = createBrowserRouter([
       {
         path: 'shared-with-me',
         element: <SharedWithMeNotes />
+      },
+      {
+        path: 'restaurants',
+        element: <RestaurantsPage />
       },
       {
         path: 'activity',
