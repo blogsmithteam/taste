@@ -3,6 +3,7 @@ import { Note } from '../../services/notes';
 import { FoodRating } from '../shared/FoodRating';
 import { format } from 'date-fns';
 import { MapPinIcon, CalendarIcon, TagIcon } from '@heroicons/react/24/outline';
+import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 
 interface NoteCardProps {
   note: Note;
@@ -26,6 +27,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onClick }) => {
     notes: note.notes || '',
     tags: Array.isArray(note.tags) ? note.tags : [],
     wouldOrderAgain: typeof note.wouldOrderAgain === 'boolean' ? note.wouldOrderAgain : true,
+    favorite: typeof note.favorite === 'boolean' ? note.favorite : false,
     visibility: note.visibility || 'private'
   };
 
@@ -44,12 +46,17 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onClick }) => {
 
   return (
     <div 
-      className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
+      className="bg-white rounded-lg shadow-sm border border-taste-primary/10 p-4 hover:shadow-md transition-shadow cursor-pointer"
       onClick={onClick}
     >
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">{safeNote.title}</h3>
+      <div className="flex justify-between items-start">
+        <div className="flex-1">
+          <h3 className="text-lg font-medium text-taste-primary mb-1">
+            {safeNote.title}
+            {safeNote.favorite && (
+              <HeartIconSolid className="h-5 w-5 text-red-500 inline-block ml-2" />
+            )}
+          </h3>
           {safeNote.type === 'restaurant' && safeNote.location && (
             <div className="flex items-center text-gray-600 text-sm mt-1">
               <MapPinIcon className="h-4 w-4 mr-1" />

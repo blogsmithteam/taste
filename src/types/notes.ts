@@ -25,6 +25,7 @@ export interface Note {
   tags: string[];
   improvements: string[];
   wouldOrderAgain: boolean;
+  favorite: boolean;
   visibility: NoteVisibility;
   sharedWith: string[];
   createdAt: Timestamp;

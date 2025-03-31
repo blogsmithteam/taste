@@ -24,6 +24,7 @@ export interface Note {
   tags: string[];
   improvements: string[];
   wouldOrderAgain: boolean;
+  favorite: boolean;
   visibility: 'private' | 'friends' | 'public';
   photos: string[];
   sharedWith: string[];
@@ -49,6 +50,7 @@ export interface CreateNoteData {
   tags: string[];
   improvements: string[];
   wouldOrderAgain: boolean;
+  favorite: boolean;
   visibility: 'private' | 'friends' | 'public';
   photos: string[];
 }
@@ -160,6 +162,7 @@ export const notesService = {
       tags: data.tags || [],
       improvements: data.improvements || [],
       wouldOrderAgain: data.wouldOrderAgain,
+      favorite: data.favorite,
       visibility: data.visibility,
       photos: data.photos || [],
       sharedWith: [], // Initialize empty array for new notes
@@ -607,7 +610,6 @@ export const notesService = {
             type: 'note_shared',
             senderId: userId,
             senderUsername: userData.username,
-            senderProfilePicture: userData.profilePicture,
             recipientId,
             targetId: noteId,
             title: existingNote.title

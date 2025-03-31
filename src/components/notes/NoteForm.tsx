@@ -41,6 +41,7 @@ interface NoteFormData {
   tags: string[];
   improvements: string[];
   wouldOrderAgain: boolean;
+  favorite: boolean;
   visibility: 'private' | 'friends' | 'public';
   photos: string[];
 }
@@ -76,6 +77,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
     tags: initialNote?.tags || [],
     improvements: initialNote?.improvements || [],
     wouldOrderAgain: initialNote?.wouldOrderAgain ?? true,
+    favorite: initialNote?.favorite ?? false,
     visibility: initialNote?.visibility || 'friends',
     photos: initialNote?.photos || [],
     recipeCreator: null,  // Initialize as null since it's not part of the Note type
@@ -605,6 +607,18 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               onChange={(e) => setFormData(prev => ({
                 ...prev,
                 wouldOrderAgain: e.target.checked
+              }))}
+            />
+          </div>
+
+          <div>
+            <Checkbox
+              label="Mark as favorite"
+              name="favorite"
+              checked={formData.favorite}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                favorite: e.target.checked
               }))}
             />
           </div>

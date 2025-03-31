@@ -1,6 +1,6 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { StarIcon, MapPinIcon, PencilSquareIcon, TrashIcon, ShareIcon } from '@heroicons/react/24/outline';
+import { StarIcon, MapPinIcon, PencilSquareIcon, TrashIcon, ShareIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { Note } from '../../types/notes';
 import { useNavigate } from 'react-router-dom';
 
@@ -34,6 +34,7 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
     improvements: Array.isArray(note.improvements) ? note.improvements : [],
     photos: Array.isArray(note.photos) ? note.photos : [],
     wouldOrderAgain: typeof note.wouldOrderAgain === 'boolean' ? note.wouldOrderAgain : true,
+    favorite: typeof note.favorite === 'boolean' ? note.favorite : false,
     location: note.location || null,
     visibility: note.visibility || 'private'
   };
@@ -69,7 +70,12 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onEdit, onDelete, onShare }) 
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex justify-between items-start mb-4">
-          <h1 className="text-3xl font-serif text-gray-900">{safeNote.title}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-serif text-gray-900">{safeNote.title}</h1>
+            {safeNote.favorite && (
+              <HeartIcon className="h-6 w-6 text-red-500 fill-current" />
+            )}
+          </div>
           <div className="flex gap-2">
             {onShare && (
               <button
