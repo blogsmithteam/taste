@@ -65,6 +65,7 @@ export interface NoteFilters {
   wouldOrderAgain?: boolean;
   tags?: string[];
   searchTerm?: string;
+  userId?: string;
 }
 
 export interface FetchNotesOptions {
@@ -89,6 +90,19 @@ const matchesSearchTerm = (note: Note, searchTerm: string): boolean => {
     note.improvements.some(improvement => improvement.toLowerCase().includes(term))
   );
 };
+
+export interface NotesService {
+  createNote(userId: string, data: CreateNoteData): Promise<Note>;
+  fetchNotes(userId: string, options?: FetchNotesOptions): Promise<{ notes: Note[]; lastVisible: any }>;
+  fetchNote(noteId: string): Promise<Note>;
+  updateNote(noteId: string, data: Partial<Note>): Promise<void>;
+  deleteNote(noteId: string): Promise<void>;
+  shareNote(noteId: string, userId: string): Promise<void>;
+  unshareNote(noteId: string, userId: string): Promise<void>;
+  fetchSharedNotes(userId: string): Promise<Note[]>;
+  fetchUserFriendsNotes(userId: string, pageSize?: number): Promise<Note[]>;
+  getUserNotes(userId: string): Promise<Note[]>;
+}
 
 export const notesService = {
   async createNote(userId: string, data: CreateNoteData): Promise<Note> {
@@ -633,68 +647,175 @@ export const notesService = {
     } = options;
 
     try {
-      const constraints: QueryConstraint[] = [
-        where('sharedWith', 'array-contains', userId)
-      ];
+      // First, get the user's profile to get their following list
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+      const userProfile = userDoc.data();
+      const following = userProfile.following || [];
 
-      // Apply filters (same as fetchNotes)
+      // If filtering by specific user, check if we're following them
+      if (filters?.userId && !following.includes(filters.userId)) {
+        return { notes: [], lastVisible: null };
+      }
+
+      // Prepare base constraints that will be applied to both queries
+      const baseConstraints: QueryConstraint[] = [];
+      
+      // Apply filters that are common to both queries
       if (filters) {
         if (filters.type) {
-          constraints.push(where('type', '==', filters.type));
+          baseConstraints.push(where('type', '==', filters.type));
         }
         if (filters.rating) {
-          constraints.push(where('rating', '==', filters.rating));
+          baseConstraints.push(where('rating', '==', filters.rating));
         }
         if (filters.wouldOrderAgain !== undefined) {
-          constraints.push(where('wouldOrderAgain', '==', filters.wouldOrderAgain));
+          baseConstraints.push(where('wouldOrderAgain', '==', filters.wouldOrderAgain));
         }
         if (filters.dateFrom) {
-          constraints.push(where('date', '>=', Timestamp.fromDate(filters.dateFrom)));
+          baseConstraints.push(where('date', '>=', Timestamp.fromDate(filters.dateFrom)));
         }
         if (filters.dateTo) {
-          constraints.push(where('date', '<=', Timestamp.fromDate(filters.dateTo)));
+          baseConstraints.push(where('date', '<=', Timestamp.fromDate(filters.dateTo)));
         }
         if (filters.tags && filters.tags.length > 0) {
-          constraints.push(where('tags', 'array-contains-any', filters.tags));
+          baseConstraints.push(where('tags', 'array-contains-any', filters.tags));
         }
       }
 
       // Add sorting
-      constraints.push(orderBy(sortBy, sortDirection));
+      baseConstraints.push(orderBy(sortBy, sortDirection));
 
       // If we have a search term, fetch more results for client-side filtering
       const fetchSize = filters?.searchTerm ? Math.max(pageSize * 3, 30) : pageSize;
 
       // Add pagination
-      constraints.push(limit(fetchSize));
-      if (lastVisible) {
-        constraints.push(startAfter(lastVisible));
+      baseConstraints.push(limit(fetchSize));
+
+      const allNotes: Note[] = [];
+      
+      // If filtering by specific user, only query their notes
+      if (filters?.userId) {
+        const friendsConstraints = [
+          ...baseConstraints,
+          where('visibility', '==', 'friends'),
+          where('userId', '==', filters.userId)
+        ];
+
+        const friendsQuery = query(collection(db, 'notes'), ...friendsConstraints);
+        const friendsSnapshot = await getDocs(friendsQuery);
+        
+        friendsSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          allNotes.push({
+            id: doc.id,
+            ...data,
+            date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+          } as Note);
+        });
+      } else {
+        // Process following list in batches of 10 (Firestore limit for 'in' queries)
+        for (let i = 0; i < following.length; i += 10) {
+          const batch = following.slice(i, i + 10);
+          if (batch.length === 0) break;
+
+          // Query for friends' notes
+          const friendsConstraints = [
+            ...baseConstraints,
+            where('visibility', '==', 'friends'),
+            where('userId', 'in', batch)
+          ];
+
+          const friendsQuery = query(collection(db, 'notes'), ...friendsConstraints);
+          const friendsSnapshot = await getDocs(friendsQuery);
+          
+          friendsSnapshot.docs.forEach(doc => {
+            const data = doc.data();
+            allNotes.push({
+              id: doc.id,
+              ...data,
+              date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+              updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+            } as Note);
+          });
+        }
       }
 
-      const q = query(collection(db, 'notes'), ...constraints);
-      const snapshot = await getDocs(q);
+      // Query for explicitly shared notes
+      const sharedConstraints = [
+        ...baseConstraints,
+        where('sharedWith', 'array-contains', userId)
+      ];
 
-      let notes = snapshot.docs.map(doc => {
+      // If filtering by specific user, add userId constraint
+      if (filters?.userId) {
+        sharedConstraints.push(where('userId', '==', filters.userId));
+      }
+
+      const sharedQuery = query(collection(db, 'notes'), ...sharedConstraints);
+      const sharedSnapshot = await getDocs(sharedQuery);
+
+      sharedSnapshot.docs.forEach(doc => {
         const data = doc.data();
-        return {
+        allNotes.push({
           id: doc.id,
           ...data,
           date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
           createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
           updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
-        } as Note;
+        } as Note);
+      });
+
+      // Remove duplicates (in case a note is both shared and from a friend)
+      const uniqueNotes = Array.from(new Map(allNotes.map(note => [note.id, note])).values());
+      
+      // Sort the combined results
+      uniqueNotes.sort((a, b) => {
+        const aValue = a[sortBy];
+        const bValue = b[sortBy];
+        
+        // Handle different types of values
+        if (aValue instanceof Timestamp && bValue instanceof Timestamp) {
+          if (sortDirection === 'desc') {
+            return bValue.toMillis() - aValue.toMillis();
+          }
+          return aValue.toMillis() - bValue.toMillis();
+        }
+        
+        // For numeric values
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          if (sortDirection === 'desc') {
+            return bValue - aValue;
+          }
+          return aValue - bValue;
+        }
+        
+        // Default to string comparison
+        const aStr = String(aValue);
+        const bStr = String(bValue);
+        if (sortDirection === 'desc') {
+          return bStr.localeCompare(aStr);
+        }
+        return aStr.localeCompare(bStr);
       });
 
       // Apply client-side text search if needed
+      let filteredNotes = uniqueNotes;
       if (filters?.searchTerm) {
-        notes = notes.filter(note => matchesSearchTerm(note, filters.searchTerm!));
-        // Trim to requested page size after filtering
-        notes = notes.slice(0, pageSize);
+        filteredNotes = uniqueNotes.filter(note => matchesSearchTerm(note, filters.searchTerm!));
       }
 
+      // Apply pagination
+      const paginatedNotes = filteredNotes.slice(0, pageSize);
+
       return {
-        notes,
-        lastVisible: snapshot.docs[snapshot.docs.length - 1]
+        notes: paginatedNotes,
+        lastVisible: paginatedNotes[paginatedNotes.length - 1]
       };
     } catch (error) {
       console.error('Error in fetchSharedWithMe:', error);
@@ -729,6 +850,32 @@ export const notesService = {
       });
     } catch (error) {
       console.error('Error in fetchUserFriendsNotes:', error);
+      throw new Error('Failed to fetch user notes');
+    }
+  },
+
+  async getUserNotes(userId: string): Promise<Note[]> {
+    try {
+      const constraints: QueryConstraint[] = [
+        where('userId', '==', userId),
+        where('visibility', '==', 'private')
+      ];
+
+      const q = query(collection(db, 'notes'), ...constraints);
+      const snapshot = await getDocs(q);
+
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+        } as Note;
+      });
+    } catch (error) {
+      console.error('Error in getUserNotes:', error);
       throw new Error('Failed to fetch user notes');
     }
   }

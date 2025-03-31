@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NoteFilters } from '../../services/notes';
 import { FormInput } from '../auth/shared/FormInput';
 import { Button } from '../auth/shared/Button';
 import { FoodRating } from '../shared/FoodRating';
 import { Checkbox } from '../auth/shared/Checkbox';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../../contexts/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { User } from '../../types/user';
 
 interface NoteFiltersProps {
   filters: NoteFilters;
@@ -19,6 +23,41 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
   onReset,
   availableTags,
 }) => {
+  const { user } = useAuth();
+  const [followedUsers, setFollowedUsers] = useState<User[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  useEffect(() => {
+    const fetchFollowedUsers = async () => {
+      if (!user) return;
+
+      try {
+        setIsLoadingUsers(true);
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (!userDoc.exists()) return;
+
+        const userProfile = userDoc.data();
+        const following = userProfile.following || [];
+
+        // Fetch user details for each followed user
+        const userPromises = following.map(async (userId: string) => {
+          const followedUserDoc = await getDoc(doc(db, 'users', userId));
+          if (!followedUserDoc.exists()) return null;
+          return { id: followedUserDoc.id, ...followedUserDoc.data() } as User;
+        });
+
+        const users = (await Promise.all(userPromises)).filter((user): user is User => user !== null);
+        setFollowedUsers(users);
+      } catch (error) {
+        console.error('Error fetching followed users:', error);
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    fetchFollowedUsers();
+  }, [user]);
+
   const handleChange = (
     name: keyof NoteFilters,
     value: string | number | boolean | Date | string[] | undefined
@@ -76,6 +115,25 @@ export const NoteFiltersComponent: React.FC<NoteFiltersProps> = ({
 
       {/* Filter Row */}
       <div className="flex flex-wrap gap-6 items-end">
+        {/* User Filter */}
+        <div className="w-64">
+          <label className="block text-sm font-medium text-taste-primary mb-1.5">
+            Filter by User
+          </label>
+          <select
+            value={filters.userId || ''}
+            onChange={(e) => handleChange('userId', e.target.value || undefined)}
+            className="w-full rounded-lg border border-taste-primary/20 bg-white px-4 py-2 focus:border-taste-primary focus:outline-none focus:ring-1 focus:ring-taste-primary text-taste-primary"
+          >
+            <option value="">All Users</option>
+            {followedUsers.map((followedUser) => (
+              <option key={followedUser.id} value={followedUser.id}>
+                {followedUser.username}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="w-40">
           <FormInput
             label="From"

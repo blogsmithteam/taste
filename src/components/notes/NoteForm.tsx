@@ -76,7 +76,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
     tags: initialNote?.tags || [],
     improvements: initialNote?.improvements || [],
     wouldOrderAgain: initialNote?.wouldOrderAgain ?? true,
-    visibility: initialNote?.visibility || 'private',
+    visibility: initialNote?.visibility || 'friends',
     photos: initialNote?.photos || [],
     recipeCreator: null,  // Initialize as null since it's not part of the Note type
     location: {
@@ -620,6 +620,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ initialNote, onSuccess }) =>
               className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-taste-primary focus:ring-taste-primary text-base"
             >
               <option value="private">Private</option>
+              <option value="friends">Friends</option>
               <option value="public">Public</option>
             </select>
           </div>
