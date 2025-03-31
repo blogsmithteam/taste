@@ -26,6 +26,7 @@ const RestaurantsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -128,6 +129,10 @@ const RestaurantsPage: React.FC = () => {
     }
   };
 
+  const filteredRestaurants = restaurants.filter(restaurant =>
+    restaurant.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (!user) {
     return (
       <div className="min-h-screen bg-[#FDF1ED] flex items-center justify-center">
@@ -205,6 +210,31 @@ const RestaurantsPage: React.FC = () => {
           </div>
         </div>
 
+        <div className="mb-6">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search restaurants..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:border-[#E76F51] focus:ring-1 focus:ring-[#E76F51] focus:outline-none transition-colors pl-10"
+            />
+            <svg
+              className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+          </div>
+        </div>
+
         {error && (
           <div className="rounded-lg bg-[#E76F51]/5 border border-[#E76F51]/20 p-4 mb-6">
             <div className="flex">
@@ -221,7 +251,7 @@ const RestaurantsPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {restaurants.map(restaurant => (
+            {filteredRestaurants.map(restaurant => (
               <div
                 key={restaurant.id}
                 onClick={() => handleRestaurantClick(restaurant)}

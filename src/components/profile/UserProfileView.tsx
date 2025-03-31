@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { notesService, Note } from '../../services/notes';
 import { StarIcon } from '@heroicons/react/24/outline';
 import { NoteCard } from '../notes/NoteCard';
+import { restaurantsService } from '../../services/restaurants';
 
 interface UserProfileViewProps {
   userId: string;
@@ -31,6 +32,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [restaurantFilter, setRestaurantFilter] = useState('');
+  const [favoriteRestaurants, setFavoriteRestaurants] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -111,10 +113,22 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
       }
     };
 
+    const fetchFavoriteRestaurants = async () => {
+      if (!profile || !user) return;
+      
+      try {
+        const favorites = await restaurantsService.getFavorites(userId);
+        setFavoriteRestaurants(favorites);
+      } catch (err) {
+        console.error('Error loading favorite restaurants:', err);
+      }
+    };
+
     fetchFollowers();
     fetchFollowing();
     fetchFamilyMembers();
     fetchUserNotes();
+    fetchFavoriteRestaurants();
   }, [userId, profile, user]);
 
   const handleCopyProfileLink = async () => {
@@ -354,56 +368,104 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
           {/* Favorites Section */}
           <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
             <div className="p-8">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-serif text-2xl font-semibold text-[#E76F51]">Favorites</h2>
+              <h2 className="font-serif text-2xl font-semibold text-[#E76F51] mb-6">Favorites</h2>
+
+              {/* Favorite Meals Subsection */}
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Favorite Meals</h3>
+                {recentNotes
+                  .filter(note => note.favorite)
+                  .filter(note => 
+                    !restaurantFilter || 
+                    note.location?.name?.toLowerCase().includes(restaurantFilter.toLowerCase())
+                  ).length === 0 ? (
+                  <p className="text-gray-500">No favorite meals yet</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {recentNotes
+                      .filter(note => note.favorite)
+                      .filter(note => 
+                        !restaurantFilter || 
+                        note.location?.name?.toLowerCase().includes(restaurantFilter.toLowerCase())
+                      )
+                      .slice(0, 6)
+                      .map(note => (
+                        <div key={note.id} onClick={() => handleNoteClick(note.id)} className="card-hover">
+                          <NoteCard note={note} />
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
 
-              {/* Restaurant Search Filter */}
-              <div className="mb-6">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search by restaurant..."
-                    value={restaurantFilter}
-                    onChange={(e) => setRestaurantFilter(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E76F51]/50 focus:border-transparent"
-                  />
-                  {restaurantFilter && (
-                    <button
-                      onClick={() => setRestaurantFilter('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      Clear
-                    </button>
-                  )}
+              {/* Favorite Restaurants Subsection */}
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Favorite Restaurants</h3>
+                <div className="mb-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search favorite restaurants..."
+                      value={restaurantFilter}
+                      onChange={(e) => setRestaurantFilter(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E76F51]/50 focus:border-transparent"
+                    />
+                    {restaurantFilter && (
+                      <button
+                        onClick={() => setRestaurantFilter('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {favoriteRestaurants
+                  .filter(restaurantName => 
+                    !restaurantFilter || 
+                    restaurantName.toLowerCase().includes(restaurantFilter.toLowerCase())
+                  ).length === 0 ? (
+                  <p className="text-gray-500">
+                    {restaurantFilter ? 'No favorite restaurants found matching your search' : 'No favorite restaurants yet'}
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {favoriteRestaurants
+                      .filter(restaurantName => 
+                        !restaurantFilter || 
+                        restaurantName.toLowerCase().includes(restaurantFilter.toLowerCase())
+                      )
+                      .slice(0, 6)
+                      .map(restaurantName => {
+                        const restaurantNotes = recentNotes
+                          .filter(note => note.location?.name === restaurantName)
+                          .sort((a, b) => b.rating - a.rating);
+                        const bestNote = restaurantNotes[0];
+                        
+                        return (
+                          <div 
+                            key={restaurantName} 
+                            onClick={() => bestNote ? handleNoteClick(bestNote.id) : null}
+                            className="bg-white rounded-lg shadow-sm border border-taste-primary/10 p-4 hover:shadow-md transition-shadow cursor-pointer"
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="text-lg font-medium text-taste-primary">{restaurantName}</h4>
+                              {bestNote && (
+                                <div className="flex items-center">
+                                  <StarIcon className="h-5 w-5 text-yellow-400 fill-current" />
+                                  <span className="ml-1 text-sm text-gray-600">{bestNote.rating}/5</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {restaurantNotes.length} {restaurantNotes.length === 1 ? 'note' : 'notes'}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
-
-              {recentNotes
-                .filter(note => note.favorite)
-                .filter(note => 
-                  !restaurantFilter || 
-                  note.location?.name?.toLowerCase().includes(restaurantFilter.toLowerCase())
-                ).length === 0 ? (
-                <p className="text-gray-500 mt-4">
-                  {restaurantFilter ? 'No favorites found for this restaurant' : 'No favorite notes yet'}
-                </p>
-              ) : (
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {recentNotes
-                    .filter(note => note.favorite)
-                    .filter(note => 
-                      !restaurantFilter || 
-                      note.location?.name?.toLowerCase().includes(restaurantFilter.toLowerCase())
-                    )
-                    .slice(0, 6)
-                    .map(note => (
-                      <div key={note.id} onClick={() => handleNoteClick(note.id)} className="card-hover">
-                        <NoteCard note={note} />
-                      </div>
-                    ))}
-                </div>
-              )}
             </div>
           </div>
 
