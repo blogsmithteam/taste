@@ -26,6 +26,7 @@ import UserNotesPage from '../pages/UserNotesPage';
 import { Dashboard } from '../pages/Dashboard';
 import RestaurantsPage from '../pages/RestaurantsPage';
 import RestaurantPage from '../pages/RestaurantPage';
+import Home from '../pages/Home';
 
 // Wrapper component to pass userId from URL params
 const UserProfileViewWrapper = () => {
@@ -36,7 +37,7 @@ const UserProfileViewWrapper = () => {
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <LoginForm />,
+    element: <Home />,
   },
   {
     path: '/login',
