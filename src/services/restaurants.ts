@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, addDoc, orderBy, limit, serverTimestamp, doc, setDoc, collectionGroup, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, orderBy, limit, serverTimestamp, doc, setDoc, collectionGroup, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 export interface Restaurant {
@@ -222,19 +222,56 @@ export const restaurantsService = {
 
   async toggleFavorite(userId: string, restaurantName: string): Promise<boolean> {
     try {
-      const favoritesRef = doc(db, `users/${userId}/favorites/${restaurantName}`);
-      const favoriteDoc = await getDocs(query(collection(db, `users/${userId}/favorites`), where('restaurantName', '==', restaurantName)));
+      // Normalize the restaurant name to avoid issues with case sensitivity or extra spaces
+      const normalizedName = restaurantName.trim();
       
-      if (!favoriteDoc.empty) {
-        // Remove from favorites
+      // Use a consistent document ID based on the restaurant name
+      const favoritesRef = doc(db, `users/${userId}/favorites/${normalizedName}`);
+      
+      // Get the user document to update the main array too
+      const userRef = doc(db, `users/${userId}`);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        console.error('User document not found');
+        throw new Error('User not found');
+      }
+      
+      const userData = userDoc.data();
+      const currentFavorites = userData.favoriteRestaurants || [];
+      
+      // Check if this restaurant is already favorited
+      const docSnapshot = await getDoc(favoritesRef);
+      
+      if (docSnapshot.exists()) {
+        // Restaurant is already a favorite, so remove it
         await deleteDoc(favoritesRef);
+        
+        // Also remove from the user document array
+        const updatedFavorites = currentFavorites.filter((name: string) => name !== normalizedName);
+        await updateDoc(userRef, {
+          favoriteRestaurants: updatedFavorites,
+          updatedAt: serverTimestamp()
+        });
+        
+        console.log('Removed restaurant from favorites:', normalizedName);
         return false;
       } else {
-        // Add to favorites
+        // Restaurant is not a favorite, so add it
         await setDoc(favoritesRef, {
-          restaurantName,
+          restaurantName: normalizedName,
           createdAt: serverTimestamp(),
         });
+        
+        // Add to the user document array if not already there
+        if (!currentFavorites.includes(normalizedName)) {
+          await updateDoc(userRef, {
+            favoriteRestaurants: [...currentFavorites, normalizedName],
+            updatedAt: serverTimestamp()
+          });
+        }
+        
+        console.log('Added restaurant to favorites:', normalizedName);
         return true;
       }
     } catch (error) {
@@ -243,14 +280,134 @@ export const restaurantsService = {
     }
   },
 
-  async getFavorites(userId: string): Promise<string[]> {
+  // Helper function to check if the user can access favorites
+  async canAccessFavorites(userId: string, currentUserId: string): Promise<boolean> {
     try {
+      console.log(`Checking if user ${currentUserId} can access favorites of ${userId}`);
+      
+      // First check if this is the same user (which should always work)
+      if (userId === currentUserId) {
+        console.log('Self-access should always be permitted');
+        return true;
+      }
+      
+      // Next, check if the current user is a follower of the target user
+      const targetUserRef = doc(db, `users/${userId}`);
+      const targetUser = await getDoc(targetUserRef);
+      
+      if (!targetUser.exists()) {
+        console.log('Target user does not exist');
+        return false;
+      }
+      
+      const userData = targetUser.data();
+      const followers = userData.followers || [];
+      
+      console.log('Target user followers:', followers);
+      const isFollower = followers.includes(currentUserId);
+      console.log(`Is user ${currentUserId} a follower of ${userId}:`, isFollower);
+      
+      return isFollower;
+    } catch (error) {
+      console.error('Error checking access permissions:', error);
+      return false;
+    }
+  },
+  
+  async getFavorites(userId: string, currentUserId?: string): Promise<string[]> {
+    try {
+      console.log('Getting favorites for user:', userId, 'Current user:', currentUserId);
+      
+      // For debugging, if currentUserId is provided, validate permissions first
+      if (currentUserId) {
+        const canAccess = await this.canAccessFavorites(userId, currentUserId);
+        console.log('Permission check result:', canAccess);
+        
+        // If we're not ourselves and not a follower, we should expect a permission error
+        if (!canAccess && userId !== currentUserId) {
+          console.log('Expecting permission error based on our checks');
+        }
+      }
+      
+      // For debugging, if currentUserId is provided, check if they're following the target user
+      if (currentUserId && currentUserId !== userId) {
+        try {
+          // Get the target user's profile to check followers
+          const targetUserDocRef = doc(db, `users/${userId}`);
+          const targetUserDoc = await getDoc(targetUserDocRef);
+          
+          if (targetUserDoc.exists()) {
+            const targetUserData = targetUserDoc.data();
+            const followers = targetUserData.followers || [];
+            const isFollower = followers.includes(currentUserId);
+            console.log(`Is current user (${currentUserId}) following target user (${userId}):`, isFollower);
+            console.log('Target user followers:', followers);
+          } else {
+            console.log('Target user profile not found');
+          }
+        } catch (err) {
+          console.error('Error checking follower status:', err);
+        }
+      }
+      
       const favoritesRef = collection(db, `users/${userId}/favorites`);
       const favoritesSnapshot = await getDocs(favoritesRef);
-      return favoritesSnapshot.docs.map(doc => doc.data().restaurantName);
+      
+      console.log('Favorites snapshot size:', favoritesSnapshot.size);
+      
+      // Return restaurant names from either the document ID or the restaurantName field
+      const favorites = favoritesSnapshot.docs.map(doc => {
+        // Log each document data and ID for debugging
+        console.log('Favorite doc ID:', doc.id, 'Data:', doc.data());
+        
+        // First try to get from the restaurantName field
+        const restaurantName = doc.data().restaurantName;
+        // If that doesn't exist, use the document ID as fallback
+        return restaurantName || doc.id;
+      });
+      
+      console.log('Returning favorites:', favorites);
+      return favorites;
     } catch (error) {
       console.error('Error getting favorites:', error);
       throw new Error('Failed to get favorites');
+    }
+  },
+
+  // Workaround to get favorites for users when direct subcollection access is failing
+  async getFavoritesWorkaround(userId: string, currentUserId?: string): Promise<string[]> {
+    try {
+      console.log('Using workaround to get favorites for user:', userId);
+      
+      // First try to get the user's profile document which should be accessible to followers
+      const userRef = doc(db, `users/${userId}`);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        console.log('User not found');
+        return [];
+      }
+      
+      const userData = userDoc.data();
+      
+      // Check if the profile has a favorites field
+      if (userData.favoriteRestaurants && Array.isArray(userData.favoriteRestaurants)) {
+        console.log('Found favoriteRestaurants array in user profile:', userData.favoriteRestaurants);
+        return userData.favoriteRestaurants;
+      } else {
+        console.log('No favoriteRestaurants field in user profile, will try direct subcollection access');
+        
+        // Fall back to direct access method
+        try {
+          return await this.getFavorites(userId, currentUserId);
+        } catch (error) {
+          console.error('Fallback to direct access also failed:', error);
+          return [];
+        }
+      }
+    } catch (error) {
+      console.error('Error in favorites workaround:', error);
+      return [];
     }
   },
 }; 

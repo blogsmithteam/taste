@@ -63,7 +63,6 @@ class AuthService {
     try {
       await firebaseUpdateProfile(auth.currentUser, {
         displayName: data.displayName || undefined,
-        photoURL: data.photoURL || undefined,
       });
     } catch (error) {
       throw this.handleAuthError(error as FirebaseAuthError);

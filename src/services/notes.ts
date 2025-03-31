@@ -319,6 +319,9 @@ export const notesService = {
 
     // Apply filters (same as fetchNotes)
     if (filters) {
+      if (filters.userId) {
+        constraints.push(where('userId', '==', filters.userId));
+      }
       if (filters.type) {
         constraints.push(where('type', '==', filters.type));
       }

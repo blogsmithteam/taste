@@ -16,8 +16,12 @@ service cloud.firestore {
     }
     
     function isFriend(userId) {
-      return isAuthenticated() && 
-        userId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following;
+      return isAuthenticated() && (
+        // Either the current user is following the target user
+        userId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following ||
+        // Or the target user has the current user as a follower
+        request.auth.uid in get(/databases/$(database)/documents/users/$(userId)).data.followers
+      );
     }
     
     function isFamilyMember(userId) {
@@ -152,7 +156,15 @@ service cloud.firestore {
       }
 
       match /favorites/{restaurantId} {
-        allow read: if isAuthenticated() && isOwner(userId);
+        allow read: if isAuthenticated() && (
+          isOwner(userId) || 
+          // Allow access if current user is in the profile owner's followers
+          // Check if followers exists and is a list before checking inclusion
+          ('followers' in get(/databases/$(database)/documents/users/$(userId)).data && 
+           get(/databases/$(database)/documents/users/$(userId)).data.followers is list &&
+           request.auth.uid in get(/databases/$(database)/documents/users/$(userId)).data.followers) ||
+          isFamilyMember(userId)
+        );
         allow write: if isAuthenticated() && isOwner(userId);
       }
     }

@@ -6,7 +6,6 @@ import { DietaryPreferences } from './DietaryPreferences';
 import { Allergies } from './Allergies';
 import { PrivacySettings } from './PrivacySettings';
 import { LinkIcon } from '@heroicons/react/24/outline';
-import { ProfilePhotoUpload } from './ProfilePhotoUpload';
 
 interface ProfileFormProps {
   initialData?: Partial<ProfileFormData>;
@@ -19,208 +18,111 @@ interface FormErrors {
 
 export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess }) => {
   const { user } = useAuth();
-  const [formData, setFormData] = useState<ProfileFormData>({
+  const [formData, setFormData] = useState<Partial<ProfileFormData>>({
     username: '',
-    email: '',
     bio: '',
-    photoURL: '',
     dietaryPreferences: [],
     allergies: [],
-    settings: DEFAULT_USER_SETTINGS,
-    ...initialData
+    settings: {
+      isPrivate: false,
+      emailNotifications: true,
+    },
+    ...initialData,
   });
-
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [showCopiedToast, setShowCopiedToast] = useState(false);
 
-  const handleCopyProfileLink = async () => {
-    if (!user) return;
-    const profileUrl = `${window.location.origin}/app/users/${user.uid}`;
-    try {
-      await navigator.clipboard.writeText(profileUrl);
-      setShowCopiedToast(true);
-      setTimeout(() => setShowCopiedToast(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy profile link:', err);
-    }
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  // Handle text input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    const target = e.target as HTMLInputElement;
-
-    if (target.type === 'checkbox') {
-      setFormData(prev => ({
-        ...prev,
-        settings: {
-          ...prev.settings,
-          [name]: target.checked
-        }
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handlePreferenceToggle = (preference: string) => {
-    setFormData(prev => {
-      const currentPreferences = prev.dietaryPreferences || [];
-      return {
-        ...prev,
-        dietaryPreferences: currentPreferences.includes(preference)
-          ? currentPreferences.filter(p => p !== preference)
-          : [...currentPreferences, preference]
-      };
-    });
+  // Handle dietary preferences changes
+  const handleDietaryPreferencesChange = (preferences: string[]) => {
+    setFormData(prev => ({ ...prev, dietaryPreferences: preferences }));
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!formData.username) {
-      newErrors.username = 'Username is required';
-    } else if (formData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
-    }
-
-    if (formData.bio && formData.bio.length > 500) {
-      newErrors.bio = 'Bio must be less than 500 characters';
-    }
-
-    const preferences = formData.dietaryPreferences || [];
-    if (preferences.length > 0) {
-      const invalidPreferences = preferences.filter(
-        pref => !DIETARY_PREFERENCES_OPTIONS.includes(pref)
-      );
-      if (invalidPreferences.length > 0) {
-        newErrors.dietaryPreferences = 'Some dietary preferences are invalid';
-      }
-    }
-
-    const allergies = formData.allergies || [];
-    if (allergies.length > 50) {
-      newErrors.allergies = 'Maximum of 50 allergies allowed';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  // Handle allergies changes
+  const handleAllergiesChange = (allergies: string[]) => {
+    setFormData(prev => ({ ...prev, allergies }));
   };
 
+  // Handle privacy settings changes
+  const handlePrivacySettingsChange = (settings: { isPrivate: boolean; emailNotifications: boolean }) => {
+    setFormData(prev => ({ ...prev, settings }));
+  };
+
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     setSubmitError(null);
     setSuccessMessage(null);
 
-    if (!validateForm() || !user) {
+    if (!user) {
+      setSubmitError('You must be logged in to update your profile');
+      setIsSubmitting(false);
       return;
     }
 
-    setIsLoading(true);
     try {
-      // Update profile data
       await userService.updateUserProfile(user.uid, formData);
-      
       setSuccessMessage('Profile updated successfully!');
       onSuccess?.();
     } catch (error) {
-      setSubmitError((error as Error).message);
+      console.error('Error updating profile:', error);
+      setSubmitError('Failed to update profile');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
-  };
-
-  const handlePhotoUploadComplete = (photoURL: string) => {
-    setFormData(prev => ({ ...prev, photoURL }));
-    setSuccessMessage('Profile photo updated successfully!');
-  };
-
-  const handlePhotoUploadError = (error: Error) => {
-    setSubmitError(error.message);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-12">
-      {/* Profile Photo Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
-        <div className="p-8">
-          <h2>Profile Photo</h2>
-          <div className="mt-6">
-            <ProfilePhotoUpload
-              currentPhotoURL={formData.photoURL}
-              onUploadComplete={handlePhotoUploadComplete}
-              onError={handlePhotoUploadError}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Profile Information Section */}
       <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
         <div className="p-8">
-          <h2>Basic Information</h2>
+          <h2>Profile Information</h2>
+          
           <div className="mt-6 space-y-6">
-            {/* Username */}
+            {/* Username Field */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                  Username
-                </label>
-                <button
-                  type="button"
-                  onClick={handleCopyProfileLink}
-                  className="btn-secondary inline-flex items-center"
-                >
-                  <LinkIcon className="h-4 w-4 mr-1" />
-                  Share Profile
-                </button>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                Username
+              </label>
+              <div className="mt-1">
+                <input
+                  type="text"
+                  name="username"
+                  id="username"
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  className="shadow-sm focus:ring-taste-primary focus:border-taste-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                  required
+                />
               </div>
-              <input
-                type="text"
-                id="username"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                className={`mt-1 block w-full rounded-md border ${
-                  errors.username ? 'border-red-300' : 'border-gray-300'
-                } px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm`}
-              />
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-600">{errors.username}</p>
-              )}
             </div>
-
-            {/* Bio */}
+            
+            {/* Bio Field */}
             <div>
               <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
                 Bio
               </label>
-              <textarea
-                id="bio"
-                name="bio"
-                rows={3}
-                value={formData.bio || ''}
-                onChange={handleChange}
-                className={`mt-1 block w-full rounded-md border ${
-                  errors.bio ? 'border-red-300' : 'border-gray-300'
-                } px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm`}
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                {(formData.bio || '').length}/500 characters
+              <div className="mt-1">
+                <textarea
+                  name="bio"
+                  id="bio"
+                  rows={3}
+                  value={formData.bio}
+                  onChange={handleInputChange}
+                  className="shadow-sm focus:ring-taste-primary focus:border-taste-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                />
+              </div>
+              <p className="mt-2 text-sm text-gray-500">
+                Briefly describe yourself and your food preferences.
               </p>
-              {errors.bio && <p className="mt-1 text-sm text-red-600">{errors.bio}</p>}
             </div>
           </div>
         </div>
@@ -233,13 +135,12 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
           <div className="mt-6">
             <DietaryPreferences
               selectedPreferences={formData.dietaryPreferences || []}
-              onChange={(preferences) => setFormData(prev => ({ ...prev, dietaryPreferences: preferences }))}
-              error={errors.dietaryPreferences}
+              onChange={handleDietaryPreferencesChange}
             />
           </div>
         </div>
       </div>
-
+      
       {/* Allergies Section */}
       <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
         <div className="p-8">
@@ -247,53 +148,47 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ initialData, onSuccess
           <div className="mt-6">
             <Allergies
               selectedAllergies={formData.allergies || []}
-              onChange={(allergies) => setFormData(prev => ({ ...prev, allergies }))}
-              error={errors.allergies}
+              onChange={handleAllergiesChange}
             />
           </div>
         </div>
       </div>
-
+      
       {/* Privacy Settings Section */}
       <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
         <div className="p-8">
           <h2>Privacy Settings</h2>
           <div className="mt-6">
             <PrivacySettings
-              settings={formData.settings}
-              onChange={(newSettings) => setFormData(prev => ({ ...prev, settings: newSettings }))}
+              settings={{
+                isPrivate: formData.settings?.isPrivate || false,
+                emailNotifications: formData.settings?.emailNotifications || true,
+              }}
+              onChange={handlePrivacySettingsChange}
             />
           </div>
         </div>
       </div>
-
-      {/* Toast notification for copied link */}
-      {showCopiedToast && (
-        <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg">
-          Profile link copied to clipboard!
+      
+      {/* Form Submission */}
+      <div className="flex items-center justify-between">
+        <div>
+          {submitError && (
+            <div className="text-red-600">{submitError}</div>
+          )}
+          {successMessage && (
+            <div className="text-green-600">{successMessage}</div>
+          )}
         </div>
-      )}
-
-      {/* Error and Success Messages */}
-      {submitError && (
-        <div className="rounded-xl bg-red-50 p-6 mt-8">
-          <p className="text-sm text-red-700">{submitError}</p>
-        </div>
-      )}
-      {successMessage && (
-        <div className="rounded-xl bg-green-50 p-6 mt-8">
-          <p className="text-sm text-green-700">{successMessage}</p>
-        </div>
-      )}
-
-      {/* Submit Button */}
-      <div className="flex justify-end mt-8">
         <button
           type="submit"
-          disabled={isLoading}
-          className={`btn-primary ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={isSubmitting}
+          className={`
+            btn-primary
+            ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}
+          `}
         >
-          {isLoading ? 'Saving...' : 'Save Changes'}
+          {isSubmitting ? 'Saving...' : 'Save Profile'}
         </button>
       </div>
     </form>

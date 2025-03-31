@@ -96,16 +96,39 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
     const fetchUserNotes = async () => {
       if (!profile || !user) return;
       
-      // Only fetch notes if we're following this user or if it's our own profile
-      if (userId !== user.uid && !profile.followers?.includes(user.uid)) return;
-
       try {
         setLoadingNotes(true);
-        const { notes } = await notesService.fetchNotes(userId, {
-          sortBy: 'date',
-          sortDirection: 'desc'
-        });
-        setRecentNotes(notes);
+        
+        // Different approaches based on whether this is the user's own profile or someone else's
+        if (userId === user.uid) {
+          // For the user's own profile, get all their notes
+          const { notes } = await notesService.fetchNotes(userId, {
+            sortBy: 'date',
+            sortDirection: 'desc'
+          });
+          setRecentNotes(notes);
+        } else {
+          // For someone else's profile, first check if we are following them
+          const isFollowing = profile.followers?.includes(user.uid);
+          
+          if (isFollowing) {
+            // If we're following them, get their friends + public notes
+            const { notes: friendsNotes } = await notesService.fetchSharedWithMe(user.uid, {
+              filters: { userId: userId },
+              sortBy: 'date',
+              sortDirection: 'desc'
+            });
+            setRecentNotes(friendsNotes);
+          } else {
+            // If we're not following them, only get public notes
+            const { notes: publicNotes } = await notesService.fetchPublicNotes({
+              filters: { userId: userId },
+              sortBy: 'date',
+              sortDirection: 'desc'
+            });
+            setRecentNotes(publicNotes);
+          }
+        }
       } catch (err) {
         console.error('Error loading notes:', err);
       } finally {
@@ -116,11 +139,43 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
     const fetchFavoriteRestaurants = async () => {
       if (!profile || !user) return;
       
-      try {
-        const favorites = await restaurantsService.getFavorites(userId);
-        setFavoriteRestaurants(favorites);
-      } catch (err) {
-        console.error('Error loading favorite restaurants:', err);
+      // Only fetch favorites if:
+      // 1. This is the user's own profile OR
+      // 2. The user is following the profile owner
+      if (userId === user.uid || profile.followers?.includes(user.uid)) {
+        try {
+          console.log('Fetching favorite restaurants for user:', userId);
+          console.log('Current user is a follower:', profile.followers?.includes(user.uid));
+          console.log('Profile followers:', profile.followers);
+          
+          let favorites: string[] = [];
+          
+          // Try the workaround first (since it's more reliable for followers)
+          try {
+            favorites = await restaurantsService.getFavoritesWorkaround(userId, user.uid);
+            console.log('Favorite restaurants fetched via workaround:', favorites);
+          } catch (innerErr) {
+            console.error('Workaround failed, trying direct method:', innerErr);
+            
+            // Fall back to the original method if workaround fails
+            try {
+              favorites = await restaurantsService.getFavorites(userId, user.uid);
+              console.log('Favorite restaurants fetched via direct method:', favorites);
+            } catch (directErr) {
+              console.error('All methods to fetch favorites failed:', directErr);
+              // If both methods fail, use an empty array
+              favorites = [];
+            }
+          }
+          
+          setFavoriteRestaurants(favorites);
+        } catch (err) {
+          console.error('Error loading favorite restaurants:', err);
+          // Set empty array on error to avoid undefined errors in the UI
+          setFavoriteRestaurants([]);
+        }
+      } else {
+        console.log('Not fetching favorite restaurants because user is not the owner or a follower');
       }
     };
 
@@ -185,18 +240,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
             <div className="p-8">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  {profile.photoURL ? (
-                    <img
-                      className="h-16 w-16 rounded-full"
-                      src={profile.photoURL}
-                      alt={profile.username}
-                    />
-                  ) : (
-                    <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-500 text-2xl">{profile.username[0].toUpperCase()}</span>
-                    </div>
-                  )}
-                  <div className="ml-4">
+                  <div className="ml-0">
                     <h1>{profile.username}</h1>
                     <p className="text-gray-500">{profile.email}</p>
                     <div className="flex items-center space-x-6 mt-2">
@@ -310,19 +354,6 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                       onClick={() => handleUserClick(familyMember.id)}
                     >
                       <div className="flex items-center space-x-4">
-                        {familyMember.photoURL ? (
-                          <img
-                            src={familyMember.photoURL}
-                            alt={familyMember.username}
-                            className="h-12 w-12 rounded-full"
-                          />
-                        ) : (
-                          <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
-                            <span className="text-gray-500 text-lg">
-                              {familyMember.username[0].toUpperCase()}
-                            </span>
-                          </div>
-                        )}
                         <div>
                           <h3 className="font-medium text-gray-900">{familyMember.username}</h3>
                           {familyMember.bio && (
@@ -428,7 +459,10 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                       .slice(0, 6)
                       .map(restaurantName => {
                         const restaurantNotes = recentNotes
-                          .filter(note => note.location?.name === restaurantName)
+                          .filter(note => 
+                            note.location?.name && 
+                            note.location.name.toLowerCase() === restaurantName.toLowerCase()
+                          )
                           .sort((a, b) => b.rating - a.rating);
                         const bestNote = restaurantNotes[0];
                         

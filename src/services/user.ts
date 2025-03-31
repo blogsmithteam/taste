@@ -16,7 +16,6 @@ class UserService {
     } = {
       username,
       email,
-      photoURL: '',
       bio: '',
       dietaryPreferences: [],
       allergies: [],

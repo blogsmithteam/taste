@@ -19,13 +19,11 @@ interface Activity {
   targetId: string;
   timestamp: Timestamp;
   username: string;
-  profilePicture?: string;
   title?: string;
   imageUrl?: string;
   likes?: number;
   comments?: number;
   isLiked?: boolean;
-  // Additional fields for notes
   rating?: number;
   location?: {
     name: string;
@@ -33,14 +31,11 @@ interface Activity {
   };
   notes?: string;
   tags?: string[];
-  // Fields for following activities
   targetUsername?: string;
-  targetProfilePicture?: string;
 }
 
 interface UserData {
   username: string;
-  photoURL?: string;
 }
 
 const BATCH_SIZE = 10; // Maximum number of users to query at once
@@ -77,17 +72,27 @@ export const ActivityFeed: React.FC = () => {
           snapshot.docs.map(async docSnapshot => {
             const activity = { id: docSnapshot.id, ...docSnapshot.data() } as Activity;
             
-            // For following activities, ensure we have the target user's information
-            if (activity.type === 'started_following' && !activity.targetUsername) {
+            // Fetch user data for the activity
+            try {
+              const userDoc = await getDoc(doc(db, 'users', activity.userId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                activity.username = userData.username || 'Unknown User';
+              }
+            } catch (userError) {
+              console.error('Error fetching user data:', userError);
+            }
+            
+            // For following activities, fetch target user data
+            if (activity.type === 'started_following' && activity.targetId) {
               try {
                 const targetUserDoc = await getDoc(doc(db, 'users', activity.targetId));
                 if (targetUserDoc.exists()) {
-                  const targetUserData = targetUserDoc.data() as UserData;
-                  activity.targetUsername = targetUserData.username;
-                  activity.targetProfilePicture = targetUserData.photoURL;
+                  const targetUserData = targetUserDoc.data();
+                  activity.targetUsername = targetUserData.username || 'Unknown User';
                 }
-              } catch (error) {
-                console.error('Error fetching target user data:', error);
+              } catch (targetUserError) {
+                console.error('Error fetching target user data:', targetUserError);
               }
             }
             
@@ -317,15 +322,6 @@ export const ActivityFeed: React.FC = () => {
                 <time className="text-[#536471]">{timeAgo}</time>
               </div>
             </div>
-            {activity.targetProfilePicture && (
-              <div className="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden bg-[#F7F9F9]">
-                <img
-                  src={activity.targetProfilePicture}
-                  alt={activity.targetUsername}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            )}
           </div>
         );
       default:
@@ -450,19 +446,6 @@ export const ActivityFeed: React.FC = () => {
       {activities.map((activity) => (
         <article key={activity.id} className="bg-white rounded-2xl border border-[#CFD9DE] hover:border-[#A9B9C4] transition-colors p-4">
           <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              {activity.profilePicture ? (
-                <img
-                  className="h-10 w-10 rounded-full bg-[#F7F9F9]"
-                  src={activity.profilePicture}
-                  alt={activity.username}
-                />
-              ) : (
-                <div className="h-10 w-10 rounded-full bg-[#F7F9F9] flex items-center justify-center">
-                  <UserIcon className="h-5 w-5 text-[#536471]" />
-                </div>
-              )}
-            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1 text-[15px] leading-5">
                 <button 
@@ -535,15 +518,6 @@ export const ActivityFeed: React.FC = () => {
                   >
                     {activity.targetUsername}
                   </button>
-                  {activity.targetProfilePicture && (
-                    <div className="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden">
-                      <img
-                        src={activity.targetProfilePicture}
-                        alt={activity.targetUsername}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  )}
                 </div>
               )}
               

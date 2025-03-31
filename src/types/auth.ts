@@ -4,7 +4,6 @@ export interface User {
   uid: string;
   email: string | null;
   displayName: string | null;
-  photoURL: string | null;
 }
 
 export interface AuthState {
@@ -34,6 +33,5 @@ export const mapFirebaseUser = (firebaseUser: FirebaseUser | null): User | null 
     uid: firebaseUser.uid,
     email: firebaseUser.email,
     displayName: firebaseUser.displayName,
-    photoURL: firebaseUser.photoURL,
   };
 }; 

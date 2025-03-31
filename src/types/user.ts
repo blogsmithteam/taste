@@ -5,7 +5,6 @@ export interface User {
   username: string;
   email: string;
   bio?: string;
-  photoURL?: string;
   dietaryPreferences?: string[];
   allergies?: string[];
   settings: {

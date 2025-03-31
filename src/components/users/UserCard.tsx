@@ -42,18 +42,7 @@ export const UserCard: React.FC<UserCardProps> = ({
       )}
       
       <div className="flex items-start space-x-4">
-        {user.photoURL ? (
-          <img
-            src={user.photoURL}
-            alt={user.username}
-            className="h-12 w-12 rounded-full border border-taste-primary/10"
-          />
-        ) : (
-          <div className="h-12 w-12 rounded-full bg-taste-primary/5 border border-taste-primary/10 flex items-center justify-center">
-            <UserIcon className="h-6 w-6 text-taste-primary/70" />
-          </div>
-        )}
-        
+        {/* Profile image removed */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
