@@ -35,11 +35,14 @@ const RestaurantsPage: React.FC = () => {
       try {
         setIsLoading(true);
         // Get user notes first
+        console.log('Fetching notes for user:', user.uid);
         const userNotes = await notesService.getUserNotes(user.uid);
+        console.log('Fetched notes:', userNotes.length);
         
         // Try to get favorites, but don't let it block loading restaurants
         try {
           const userFavorites = await restaurantsService.getFavorites(user.uid);
+          console.log('Fetched favorites:', userFavorites);
           setFavorites(userFavorites);
         } catch (favError) {
           console.error('Error fetching favorites:', favError);
@@ -52,6 +55,7 @@ const RestaurantsPage: React.FC = () => {
         
         userNotes.forEach(note => {
           if (note.location?.name) {
+            console.log('Processing note with restaurant:', note.location.name);
             const existing = restaurantMap.get(note.location.name);
             const rating = note.rating || 0;
             const createdDate = note.createdAt instanceof Timestamp ? note.createdAt.toDate() : note.createdAt;
@@ -80,6 +84,8 @@ const RestaurantsPage: React.FC = () => {
 
         const sortedRestaurants = Array.from(restaurantMap.values())
           .sort((a, b) => (b.lastVisited?.getTime() || 0) - (a.lastVisited?.getTime() || 0));
+        
+        console.log('Extracted restaurants:', sortedRestaurants.length);
         
         // Sort notes within each restaurant by date
         sortedRestaurants.forEach(restaurant => {

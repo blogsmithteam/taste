@@ -885,7 +885,7 @@ export const notesService = {
     try {
       const constraints: QueryConstraint[] = [
         where('userId', '==', userId),
-        where('visibility', '==', 'private')
+        orderBy('createdAt', 'desc')
       ];
 
       const q = query(collection(db, 'notes'), ...constraints);
