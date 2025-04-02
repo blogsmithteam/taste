@@ -2,6 +2,9 @@ import { Timestamp } from 'firebase/firestore';
 
 export type NotificationType = 
   | 'follow'
+  | 'follow_request'
+  | 'follow_request_accepted'
+  | 'follow_request_rejected'
   | 'note_shared'
   | 'note_liked'
   | 'note_commented';
@@ -25,6 +28,13 @@ export interface CreateNotificationData {
   senderId: string;
   senderUsername: string;
   recipientId: string;
+  timestamp: any;
+  read: boolean;
   targetId?: string;
   title?: string;
+}
+
+export interface Notification extends CreateNotificationData {
+  id: string;
+  senderProfilePicture?: string;
 } 

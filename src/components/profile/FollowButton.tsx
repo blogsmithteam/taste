@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { userService } from '../../services/user';
 
@@ -10,21 +10,26 @@ interface FollowButtonProps {
 export const FollowButton: React.FC<FollowButtonProps> = ({ targetUserId, onFollowChange }) => {
   const { user } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkFollowStatus = async () => {
+    const checkStatus = async () => {
       if (!user) return;
       try {
-        const following = await userService.isFollowing(user.uid, targetUserId);
+        const [following, requestStatus] = await Promise.all([
+          userService.isFollowing(user.uid, targetUserId),
+          userService.getFollowRequestStatus(user.uid, targetUserId)
+        ]);
         setIsFollowing(following);
+        setRequestStatus(requestStatus);
       } catch (err) {
         console.error('Error checking follow status:', err);
       }
     };
 
-    checkFollowStatus();
+    checkStatus();
   }, [user, targetUserId]);
 
   const handleFollowToggle = async () => {
@@ -35,11 +40,30 @@ export const FollowButton: React.FC<FollowButtonProps> = ({ targetUserId, onFoll
     try {
       if (isFollowing) {
         await userService.unfollowUser(user.uid, targetUserId);
+        setIsFollowing(false);
+        setRequestStatus(null); // Reset request status after unfollowing
+        onFollowChange?.(false);
       } else {
-        await userService.followUser(user.uid, targetUserId);
+        try {
+          await userService.followUser(user.uid, targetUserId);
+          // Check if a follow request was created (for private profiles)
+          const newRequestStatus = await userService.getFollowRequestStatus(user.uid, targetUserId);
+          if (newRequestStatus === 'pending') {
+            setRequestStatus('pending');
+            // Don't set isFollowing to true for private profiles
+          } else {
+            // For public profiles, set following to true immediately
+            setIsFollowing(true);
+          }
+          onFollowChange?.(true);
+        } catch (err) {
+          if ((err as Error).message === 'Follow request already pending') {
+            setRequestStatus('pending');
+          } else {
+            throw err;
+          }
+        }
       }
-      setIsFollowing(!isFollowing);
-      onFollowChange?.(!isFollowing);
     } catch (err) {
       setError((err as Error).message);
       console.error('Error toggling follow status:', err);
@@ -52,44 +76,31 @@ export const FollowButton: React.FC<FollowButtonProps> = ({ targetUserId, onFoll
     return null;
   }
 
+  let buttonText = 'Follow';
+  let buttonClass = 'btn-primary';
+
+  if (isLoading) {
+    buttonText = 'Loading...';
+  } else if (isFollowing) {
+    buttonText = 'Unfollow';
+    buttonClass = 'btn-secondary';
+  } else if (requestStatus === 'pending') {
+    buttonText = 'Requested';
+    buttonClass = 'btn-secondary';
+  }
+
   return (
     <div>
       <button
         onClick={handleFollowToggle}
-        disabled={isLoading}
-        className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-          isFollowing
-            ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
-            : 'border-transparent text-white bg-indigo-600 hover:bg-indigo-700'
-        } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        disabled={isLoading || requestStatus === 'pending'}
+        className={`${buttonClass} ${
+          (isLoading || requestStatus === 'pending') ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
       >
-        {isLoading ? (
-          <svg
-            className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-        ) : isFollowing ? (
-          'Following'
-        ) : (
-          'Follow'
-        )}
+        {buttonText}
       </button>
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
   );
 }; 

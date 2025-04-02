@@ -11,6 +11,8 @@ type NotificationFilter = NotificationType | 'all';
 const NOTIFICATION_TYPES: { label: string; value: NotificationFilter }[] = [
   { label: 'All', value: 'all' },
   { label: 'New Followers', value: 'follow' },
+  { label: 'Follow Requests', value: 'follow_request' },
+  { label: 'Request Responses', value: 'follow_request_accepted' },
   { label: 'Shared Notes', value: 'note_shared' },
   { label: 'Comments', value: 'note_commented' },
   { label: 'Likes', value: 'note_liked' }
@@ -47,6 +49,9 @@ export const NotificationsPage: React.FC = () => {
           navigate(`/app/users/${notification.senderId}`);
         }
         break;
+      case 'follow_request':
+        navigate('/app/friends', { state: { showRequests: true } });
+        break;
       default:
         break;
     }
@@ -56,6 +61,12 @@ export const NotificationsPage: React.FC = () => {
     switch (notification.type) {
       case 'follow':
         return 'started following you';
+      case 'follow_request':
+        return 'requested to follow you';
+      case 'follow_request_accepted':
+        return 'accepted your follow request';
+      case 'follow_request_rejected':
+        return 'declined your follow request';
       case 'note_shared':
         return `shared a note with you${notification.title ? `: ${notification.title}` : ''}`;
       case 'note_commented':

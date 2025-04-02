@@ -3,8 +3,9 @@ import { db } from '../lib/firebase';
 import { User, ProfileFormData, DEFAULT_USER_SETTINGS } from '../types/user';
 import { activityService } from './activity';
 import { notificationsService } from './notifications';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { Timestamp } from 'firebase/firestore';
 
 class UserService {
   async createUserProfile(uid: string, email: string, username: string): Promise<void> {
@@ -63,12 +64,56 @@ class UserService {
     const targetUserRef = doc(db, 'users', targetUserId);
     const timestamp = serverTimestamp();
 
-    // Get current user data for activity and notification creation
+    // Get target user data to check privacy settings
+    const targetUserDoc = await getDoc(targetUserRef);
+    if (!targetUserDoc.exists()) {
+      throw new Error('Target user not found');
+    }
+    const targetUser = targetUserDoc.data() as User;
+
+    // Get current user data for notifications
     const currentUserDoc = await getDoc(currentUserRef);
     if (!currentUserDoc.exists()) {
       throw new Error('Current user not found');
     }
     const currentUser = currentUserDoc.data() as User;
+
+    // If the target user has a private profile, create a follow request instead
+    if (targetUser.settings?.isPrivate) {
+      // Check if there's already a pending request
+      const requestsQuery = query(
+        collection(db, 'follow_requests'),
+        where('fromUserId', '==', currentUserId),
+        where('toUserId', '==', targetUserId),
+        where('status', '==', 'pending')
+      );
+      const existingRequests = await getDocs(requestsQuery);
+      
+      if (!existingRequests.empty) {
+        throw new Error('Follow request already pending');
+      }
+
+      // Create the follow request
+      const requestRef = doc(collection(db, 'follow_requests'));
+      await setDoc(requestRef, {
+        fromUserId: currentUserId,
+        toUserId: targetUserId,
+        status: 'pending',
+        createdAt: timestamp
+      });
+
+      // Create notification for the target user
+      await notificationsService.createNotification({
+        type: 'follow_request',
+        senderId: currentUserId,
+        senderUsername: currentUser.username,
+        recipientId: targetUserId,
+        timestamp: timestamp as Timestamp,
+        read: false
+      });
+
+      return;
+    }
 
     // Create a temporary Firebase User object for activity service
     const tempUser: FirebaseUser = {
@@ -118,18 +163,105 @@ class UserService {
       })
     ]);
 
-    // Then try to create notification, but don't fail if it errors
-    try {
-      await notificationsService.createNotification({
-        type: 'follow',
-        senderId: currentUserId,
-        senderUsername: currentUser.username || 'Unknown User',
-        recipientId: targetUserId
-      });
-    } catch (error) {
-      console.error('Failed to create follow notification:', error);
-      // Don't rethrow the error - we want the follow action to succeed even if notification fails
+    // Create notification for the target user
+    await notificationsService.createNotification({
+      type: 'follow',
+      senderId: currentUserId,
+      senderUsername: currentUser.username,
+      recipientId: targetUserId,
+      timestamp: timestamp as Timestamp,
+      read: false
+    });
+  }
+
+  async handleFollowRequest(requestId: string, status: 'accepted' | 'rejected'): Promise<void> {
+    const requestRef = doc(db, 'follow_requests', requestId);
+    const requestDoc = await getDoc(requestRef);
+    
+    if (!requestDoc.exists()) {
+      throw new Error('Follow request not found');
     }
+
+    const request = requestDoc.data();
+    const timestamp = serverTimestamp();
+
+    // Get user data for notifications
+    const currentUserDoc = await getDoc(doc(db, 'users', request.toUserId));
+    if (!currentUserDoc.exists()) {
+      throw new Error('User not found');
+    }
+    const currentUser = currentUserDoc.data() as User;
+
+    if (status === 'accepted') {
+      // Update the follow relationships
+      await Promise.all([
+        updateDoc(doc(db, 'users', request.fromUserId), {
+          following: arrayUnion(request.toUserId),
+          updatedAt: timestamp
+        }),
+        updateDoc(doc(db, 'users', request.toUserId), {
+          followers: arrayUnion(request.fromUserId),
+          updatedAt: timestamp
+        })
+      ]);
+
+      // Create notification for the requester
+      await notificationsService.createNotification({
+        type: 'follow_request_accepted',
+        senderId: request.toUserId,
+        senderUsername: currentUser.username,
+        recipientId: request.fromUserId,
+        timestamp: timestamp as Timestamp,
+        read: false
+      });
+    } else {
+      // Create notification for the requester
+      await notificationsService.createNotification({
+        type: 'follow_request_rejected',
+        senderId: request.toUserId,
+        senderUsername: currentUser.username,
+        recipientId: request.fromUserId,
+        timestamp: timestamp as Timestamp,
+        read: false
+      });
+    }
+
+    // Update the request status
+    await updateDoc(requestRef, {
+      status,
+      updatedAt: timestamp
+    });
+  }
+
+  async getPendingFollowRequests(userId: string): Promise<Array<{ id: string; fromUserId: string; createdAt: Timestamp }>> {
+    const requestsQuery = query(
+      collection(db, 'follow_requests'),
+      where('toUserId', '==', userId),
+      where('status', '==', 'pending'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const snapshot = await getDocs(requestsQuery);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Array<{ id: string; fromUserId: string; createdAt: Timestamp }>;
+  }
+
+  async getFollowRequestStatus(fromUserId: string, toUserId: string): Promise<string | null> {
+    const requestsQuery = query(
+      collection(db, 'follow_requests'),
+      where('fromUserId', '==', fromUserId),
+      where('toUserId', '==', toUserId),
+      where('status', '==', 'pending')
+    );
+
+    const snapshot = await getDocs(requestsQuery);
+    if (snapshot.empty) {
+      return null;
+    }
+
+    return snapshot.docs[0].data().status;
   }
 
   async unfollowUser(currentUserId: string, targetUserId: string): Promise<void> {
@@ -359,16 +491,37 @@ class UserService {
 
   async getAllUsers(): Promise<User[]> {
     try {
+      // Get all users without filtering by privacy setting
       const usersQuery = query(
         collection(db, 'users'),
-        where('settings.isPrivate', '==', false)
+        orderBy('username') // Order by username for consistent listing
       );
       
       const querySnapshot = await getDocs(usersQuery);
-      const users = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as User[];
+      const users = querySnapshot.docs.map(doc => {
+        const userData = doc.data();
+        // For private profiles, only return basic information
+        if (userData.settings?.isPrivate) {
+          return {
+            id: doc.id,
+            username: userData.username,
+            settings: {
+              isPrivate: true,
+              emailNotifications: userData.settings.emailNotifications,
+              language: userData.settings.language
+            },
+            followers: userData.followers || [],
+            following: userData.following || [],
+            createdAt: userData.createdAt,
+            updatedAt: userData.updatedAt
+          } as User;
+        }
+        // For public profiles, return all information
+        return {
+          id: doc.id,
+          ...userData
+        } as User;
+      });
 
       return users;
     } catch (error) {

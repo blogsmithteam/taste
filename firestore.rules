@@ -11,6 +11,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isFollowing(userId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId));
+    }
+
     function isNoteOwner() {
       return isAuthenticated() && request.auth.uid == resource.data.userId;
     }
@@ -72,6 +77,10 @@ service cloud.firestore {
         resource.data.settings.isPrivate == true;
     }
 
+    function isBasicProfile() {
+      return isAuthenticated();
+    }
+
     function isValidUserData(data) {
       return data.username is string &&
         data.username.size() >= 3 &&
@@ -123,13 +132,37 @@ service cloud.firestore {
       return isOwnDocument || isFollowOperation;
     }
 
+    function canViewPrivateProfile(userId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(userId));
+      return !userDoc.data.settings.isPrivate || 
+             isOwner(userId) || 
+             (userDoc.data.settings.isPrivate && isFollowing(userId));
+    }
+
+    function canViewBasicProfile(userId) {
+      return isAuthenticated();
+    }
+
+    function canViewNote(noteData) {
+      let noteOwner = noteData.userId;
+      let ownerDoc = get(/databases/$(database)/documents/users/$(noteOwner));
+      
+      return isOwner(noteOwner) || 
+             noteData.visibility == 'public' ||
+             (noteData.visibility == 'friends' && (
+               // For non-private profiles, allow viewing if authenticated
+               !ownerDoc.data.settings.isPrivate ||
+               // For private profiles, require following
+               (ownerDoc.data.settings.isPrivate && isFollowing(noteOwner))
+             )) ||
+             (request.auth.uid in noteData.sharedWith);
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated() && (
-        isOwner(userId) || 
-        !isPrivateProfile() ||
-        (isPrivateProfile() && isFriend(userId)) ||
-        (isPrivateProfile() && isFamilyMember(userId))
+        canViewBasicProfile(userId) ||
+        canViewPrivateProfile(userId)
       );
       
       allow create: if isAuthenticated() && isValidUserData(request.resource.data);
@@ -161,37 +194,66 @@ service cloud.firestore {
       }
     }
 
+    // Follow requests collection
+    match /follow_requests/{requestId} {
+      allow read: if isAuthenticated() && (
+        // Allow reading if user is the sender or recipient
+        request.auth.uid == resource.data.fromUserId ||
+        request.auth.uid == resource.data.toUserId
+      );
+      
+      allow create: if isAuthenticated() && (
+        // Allow creating if user is the sender and data is valid
+        request.resource.data.fromUserId == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.keys().hasOnly(['fromUserId', 'toUserId', 'status', 'createdAt'])
+      );
+      
+      allow update: if isAuthenticated() && (
+        // Only allow recipient to update status
+        request.auth.uid == resource.data.toUserId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+        request.resource.data.status in ['accepted', 'rejected']
+      );
+      
+      allow delete: if isAuthenticated() && (
+        // Allow deletion by either party
+        request.auth.uid == resource.data.fromUserId ||
+        request.auth.uid == resource.data.toUserId
+      );
+    }
+
     // Notes collection
     match /notes/{noteId} {
-      function isValidNoteData(data) {
-        let hasValidUserId = data.userId == request.auth.uid;
-        let hasValidVisibility = data.visibility in ['private', 'public', 'friends'];
-        let hasValidTimestamp = data.createdAt is timestamp && data.updatedAt is timestamp;
-        let hasValidNote = !('note' in data) || (data.note is string);
-        let hasValidSharedWith = !('sharedWith' in data) || (data.sharedWith is list);
-        
-        return hasValidUserId && 
-          hasValidVisibility && 
-          hasValidTimestamp && 
-          hasValidNote &&
-          hasValidSharedWith;
-      }
-
       allow read: if isAuthenticated() && (
-        isNoteOwner() || 
-        isPublic() || 
-        (isFriendsOnly() && isFriend(resource.data.userId)) ||
-        isFamilyMember(resource.data.userId) ||
-        isSharedWithUser()
+        isOwner(resource.data.userId) || 
+        resource.data.visibility == 'public' ||
+        (resource.data.visibility == 'friends' && (
+          // For non-private profiles, allow viewing if authenticated
+          !get(/databases/$(database)/documents/users/$(resource.data.userId)).data.settings.isPrivate ||
+          // For private profiles, require following
+          (get(/databases/$(database)/documents/users/$(resource.data.userId)).data.settings.isPrivate && isFollowing(resource.data.userId))
+        )) ||
+        request.auth.uid in resource.data.sharedWith
       );
-      allow create: if isAuthenticated() && isValidNoteData(request.resource.data);
+      
+      // Allow listing notes shared with the user
+      allow list: if isAuthenticated() && (
+        // Base case - allow if user is authenticated
+        true
+      );
+      
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
       allow update: if isAuthenticated() && (
-        isNoteOwner() || 
-        (isSharedWithUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt', 'likes', 'likedBy'])) ||
-        (isPublic() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt', 'likes', 'likedBy'])) ||
-        (isFriendsOnly() && isFriend(resource.data.userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt', 'likes', 'likedBy']))
+        isOwner(resource.data.userId) || 
+        // Allow liking/unliking if user can view the note
+        (canViewNote(resource.data) && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'updatedAt']))
       );
-      allow delete: if isNoteOwner();
+      
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
     // Restaurants collection with nested menuItems
@@ -317,7 +379,7 @@ service cloud.firestore {
       
       allow create: if isAuthenticated() && 
         request.resource.data.senderId == request.auth.uid &&
-        request.resource.data.type in ['follow', 'note_shared', 'note_liked', 'note_commented'] &&
+        request.resource.data.type in ['follow', 'follow_request', 'follow_request_accepted', 'follow_request_rejected', 'note_shared', 'note_liked', 'note_commented'] &&
         request.resource.data.timestamp is timestamp &&
         request.resource.data.read is bool &&
         request.resource.data.recipientId is string &&

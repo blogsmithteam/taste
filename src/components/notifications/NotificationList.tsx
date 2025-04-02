@@ -84,6 +84,24 @@ export const NotificationList: React.FC = () => {
             started following you
           </span>
         );
+      case 'follow_request':
+        return (
+          <span>
+            requested to follow you
+          </span>
+        );
+      case 'follow_request_accepted':
+        return (
+          <span>
+            accepted your follow request
+          </span>
+        );
+      case 'follow_request_rejected':
+        return (
+          <span>
+            declined your follow request
+          </span>
+        );
       case 'note_shared':
         return (
           <span>

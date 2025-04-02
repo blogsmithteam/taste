@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/user';
 import { User } from '../types/user';
 import { UserCard } from '../components/users/UserCard';
 import { UserGroupIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PendingFollowRequests } from '../components/profile/PendingFollowRequests';
 
 const FriendsPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [friends, setFriends] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showRequests, setShowRequests] = useState(location.state?.showRequests || false);
 
   useEffect(() => {
     const fetchFriends = async () => {
@@ -84,14 +87,37 @@ const FriendsPage: React.FC = () => {
               Connect and share with your tasting community
             </p>
           </div>
-          <button
-            onClick={() => navigate('/app/discover')}
-            className="inline-flex items-center px-4 py-2 bg-taste-primary text-white rounded-lg hover:bg-taste-primary/90 transition-colors"
-          >
-            <UserGroupIcon className="h-5 w-5 mr-2" />
-            Discover Friends
-          </button>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => setShowRequests(!showRequests)}
+              className={`inline-flex items-center px-4 py-2 rounded-lg transition-colors ${
+                showRequests 
+                  ? 'bg-taste-primary text-white hover:bg-taste-primary/90'
+                  : 'bg-taste-primary/10 text-taste-primary hover:bg-taste-primary/20'
+              }`}
+            >
+              Follow Requests
+            </button>
+            <button
+              onClick={() => navigate('/app/discover')}
+              className="inline-flex items-center px-4 py-2 bg-taste-primary text-white rounded-lg hover:bg-taste-primary/90 transition-colors"
+            >
+              <UserGroupIcon className="h-5 w-5 mr-2" />
+              Discover Friends
+            </button>
+          </div>
         </div>
+
+        {showRequests && (
+          <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10 mb-8">
+            <div className="p-8">
+              <h2 className="font-serif text-2xl font-semibold text-[#E76F51] mb-6">
+                Pending Follow Requests
+              </h2>
+              <PendingFollowRequests />
+            </div>
+          </div>
+        )}
 
         <div className="p-6">
           <div className="relative mb-6">

@@ -94,6 +94,16 @@ export interface FetchNotesOptions {
   sortDirection?: 'asc' | 'desc';
 }
 
+interface UserProfile {
+  username: string;
+  email: string;
+  following?: string[];
+  followers?: string[];
+  settings?: {
+    isPrivate?: boolean;
+  };
+}
+
 // Helper function to check if a note matches the search term
 const matchesSearchTerm = (note: Note, searchTerm: string): boolean => {
   if (!searchTerm) return true;
@@ -637,7 +647,9 @@ export const notesService = {
             senderUsername: userData.username,
             recipientId,
             targetId: noteId,
-            title: existingNote.title
+            title: existingNote.title,
+            timestamp: serverTimestamp(),
+            read: false
           })
         );
 
@@ -668,7 +680,6 @@ export const notesService = {
     const {
       filters,
       pageSize = 10,
-      lastVisible,
       sortBy = 'createdAt',
       sortDirection = 'desc'
     } = options;
@@ -679,18 +690,15 @@ export const notesService = {
       if (!userDoc.exists()) {
         throw new Error('User not found');
       }
-      const userProfile = userDoc.data();
+      const userProfile = userDoc.data() as UserProfile;
       const following = userProfile.following || [];
 
-      // If filtering by specific user, check if we're following them
-      if (filters?.userId && !following.includes(filters.userId)) {
-        return { notes: [], lastVisible: null };
-      }
-
-      // Prepare base constraints that will be applied to both queries
-      const baseConstraints: QueryConstraint[] = [];
+      // Prepare base constraints
+      const baseConstraints: QueryConstraint[] = [
+        where('userId', '!=', userId) // Exclude user's own notes
+      ];
       
-      // Apply filters that are common to both queries
+      // Apply common filters
       if (filters) {
         if (filters.type) {
           baseConstraints.push(where('type', '==', filters.type));
@@ -710,83 +718,24 @@ export const notesService = {
         if (filters.tags && filters.tags.length > 0) {
           baseConstraints.push(where('tags', 'array-contains-any', filters.tags));
         }
+        if (filters.userId) {
+          baseConstraints.push(where('userId', '==', filters.userId));
+        }
       }
 
       // Add sorting
       baseConstraints.push(orderBy(sortBy, sortDirection));
 
-      // If we have a search term, fetch more results for client-side filtering
-      const fetchSize = filters?.searchTerm ? Math.max(pageSize * 3, 30) : pageSize;
-
-      // Add pagination
-      baseConstraints.push(limit(fetchSize));
-
       const allNotes: Note[] = [];
-      
-      // If filtering by specific user, only query their notes
-      if (filters?.userId) {
-        const friendsConstraints = [
-          ...baseConstraints,
-          where('visibility', '==', 'friends'),
-          where('userId', '==', filters.userId)
-        ];
 
-        const friendsQuery = query(collection(db, 'notes'), ...friendsConstraints);
-        const friendsSnapshot = await getDocs(friendsQuery);
-        
-        friendsSnapshot.docs.forEach(doc => {
-          const data = doc.data();
-          allNotes.push({
-            id: doc.id,
-            ...data,
-            date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
-            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
-          } as Note);
-        });
-      } else {
-        // Process following list in batches of 10 (Firestore limit for 'in' queries)
-        for (let i = 0; i < following.length; i += 10) {
-          const batch = following.slice(i, i + 10);
-          if (batch.length === 0) break;
-
-          // Query for friends' notes
-          const friendsConstraints = [
-            ...baseConstraints,
-            where('visibility', '==', 'friends'),
-            where('userId', 'in', batch)
-          ];
-
-          const friendsQuery = query(collection(db, 'notes'), ...friendsConstraints);
-          const friendsSnapshot = await getDocs(friendsQuery);
-          
-          friendsSnapshot.docs.forEach(doc => {
-            const data = doc.data();
-            allNotes.push({
-              id: doc.id,
-              ...data,
-              date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
-              createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
-              updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
-            } as Note);
-          });
-        }
-      }
-
-      // Query for explicitly shared notes
-      const sharedConstraints = [
-        ...baseConstraints,
-        where('sharedWith', 'array-contains', userId)
-      ];
-
-      // If filtering by specific user, add userId constraint
-      if (filters?.userId) {
-        sharedConstraints.push(where('userId', '==', filters.userId));
-      }
-
-      const sharedQuery = query(collection(db, 'notes'), ...sharedConstraints);
+      // 1. Query for explicitly shared notes
+      const sharedQuery = query(
+        collection(db, 'notes'),
+        where('sharedWith', 'array-contains', userId),
+        ...baseConstraints
+      );
       const sharedSnapshot = await getDocs(sharedQuery);
-
+      
       sharedSnapshot.docs.forEach(doc => {
         const data = doc.data();
         allNotes.push({
@@ -798,37 +747,77 @@ export const notesService = {
         } as Note);
       });
 
-      // Remove duplicates (in case a note is both shared and from a friend)
-      const uniqueNotes = Array.from(new Map(allNotes.map(note => [note.id, note])).values());
+      // 2. Query for public notes
+      const publicQuery = query(
+        collection(db, 'notes'),
+        where('visibility', '==', 'public'),
+        ...baseConstraints
+      );
+      const publicSnapshot = await getDocs(publicQuery);
       
-      // Sort the combined results
+      publicSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        allNotes.push({
+          id: doc.id,
+          ...data,
+          date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+        } as Note);
+      });
+
+      // 3. Query for friends-only notes
+      const friendsQuery = query(
+        collection(db, 'notes'),
+        where('visibility', '==', 'friends'),
+        ...baseConstraints
+      );
+      const friendsSnapshot = await getDocs(friendsQuery);
+
+      // Process each friends-only note
+      const friendsPromises = friendsSnapshot.docs.map(async (docSnapshot) => {
+        const data = docSnapshot.data();
+        const ownerRef = doc(db, 'users', data.userId);
+        const ownerDoc = await getDoc(ownerRef);
+        
+        if (ownerDoc.exists()) {
+          const ownerData = ownerDoc.data() as UserProfile;
+          // Include note if owner's profile is not private or if we're following them
+          if (!ownerData.settings?.isPrivate || following.includes(data.userId)) {
+            return {
+              id: docSnapshot.id,
+              ...data,
+              date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+              updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+            } as Note;
+          }
+        }
+        return null;
+      });
+
+      const friendsNotes = (await Promise.all(friendsPromises)).filter((note): note is Note => note !== null);
+      allNotes.push(...friendsNotes);
+
+      // Remove duplicates
+      const uniqueNotes = Array.from(new Map(allNotes.map(note => [note.id, note])).values());
+
+      // Sort combined results
       uniqueNotes.sort((a, b) => {
         const aValue = a[sortBy];
         const bValue = b[sortBy];
         
-        // Handle different types of values
         if (aValue instanceof Timestamp && bValue instanceof Timestamp) {
-          if (sortDirection === 'desc') {
-            return bValue.toMillis() - aValue.toMillis();
-          }
-          return aValue.toMillis() - bValue.toMillis();
+          return sortDirection === 'desc' ? bValue.toMillis() - aValue.toMillis() : aValue.toMillis() - bValue.toMillis();
         }
         
-        // For numeric values
         if (typeof aValue === 'number' && typeof bValue === 'number') {
-          if (sortDirection === 'desc') {
-            return bValue - aValue;
-          }
-          return aValue - bValue;
+          return sortDirection === 'desc' ? bValue - aValue : aValue - bValue;
         }
         
-        // Default to string comparison
-        const aStr = String(aValue);
-        const bStr = String(bValue);
-        if (sortDirection === 'desc') {
-          return bStr.localeCompare(aStr);
-        }
-        return aStr.localeCompare(bStr);
+        return sortDirection === 'desc' ? 
+          String(bValue).localeCompare(String(aValue)) : 
+          String(aValue).localeCompare(String(bValue));
       });
 
       // Apply client-side text search if needed
@@ -944,23 +933,35 @@ export const notesService = {
 
       const note = { id: noteDoc.id, ...noteDoc.data() } as Note;
       
-      // Check permissions - multiple ways a user can interact with a note
+      // Get the note owner's profile to check privacy settings
+      const ownerDoc = await getDoc(doc(db, 'users', note.userId));
+      if (!ownerDoc.exists()) {
+        throw new Error('Note owner not found');
+      }
+      const ownerData = ownerDoc.data();
+      
+      // Check permissions
       const isOwner = note.userId === userId;
       const isExplicitlyShared = note.sharedWith && note.sharedWith.includes(userId);
       const isPublic = note.visibility === 'public';
-      
-      // For friends-only notes, we'll assume it's accessible for now
-      // In a production app, you would check if the user is a friend of the note owner
       const isFriendsOnly = note.visibility === 'friends';
       
-      if (!isOwner && !isExplicitlyShared && !isPublic && !isFriendsOnly) {
+      // For friends-only notes, check if the profile is private and if the user is following
+      const canViewFriendsNote = isFriendsOnly && (
+        !ownerData.settings?.isPrivate || // Non-private profiles allow viewing friends-only notes
+        (ownerData.settings?.isPrivate && ownerData.followers?.includes(userId)) // Private profiles require following
+      );
+      
+      if (!isOwner && !isExplicitlyShared && !isPublic && !canViewFriendsNote) {
         // Add debug info to help troubleshoot
         console.log('Permission denied:', {
           noteId,
           userId,
           noteOwnerId: note.userId,
           isSharedWith: note.sharedWith,
-          visibility: note.visibility
+          visibility: note.visibility,
+          isPrivateProfile: ownerData.settings?.isPrivate,
+          isFollowing: ownerData.followers?.includes(userId)
         });
         throw new Error('You do not have permission to like this note');
       }
@@ -984,6 +985,7 @@ export const notesService = {
 
       // Get user data for notification
       const userDoc = await getDoc(doc(db, 'users', userId));
+      
       if (userDoc.exists() && note.userId !== userId) {
         const userData = userDoc.data();
         
@@ -994,7 +996,9 @@ export const notesService = {
           senderUsername: userData.username,
           recipientId: note.userId,
           targetId: noteId,
-          title: note.title
+          title: note.title,
+          timestamp: serverTimestamp(),
+          read: false
         });
       }
 
@@ -1061,20 +1065,12 @@ export const notesService = {
     }
   },
 
-  async addComment(noteId: string, userId: string, text: string): Promise<Comment> {
+  async addComment(noteId: string, userId: string, comment: string): Promise<Note> {
     if (!userId) throw new Error('User ID is required');
     if (!noteId) throw new Error('Note ID is required');
-    if (!text.trim()) throw new Error('Comment text is required');
+    if (!comment.trim()) throw new Error('Comment cannot be empty');
 
     try {
-      // Get user info for the comment
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      if (!userDoc.exists()) {
-        throw new Error('User not found');
-      }
-      const userData = userDoc.data();
-
-      // Get the note
       const noteRef = doc(db, 'notes', noteId);
       const noteDoc = await getDoc(noteRef);
 
@@ -1083,63 +1079,48 @@ export const notesService = {
       }
 
       const note = { id: noteDoc.id, ...noteDoc.data() } as Note;
-      
-      // Check permissions - multiple ways a user can interact with a note
-      const isOwner = note.userId === userId;
-      const isExplicitlyShared = note.sharedWith && note.sharedWith.includes(userId);
-      const isPublic = note.visibility === 'public';
-      const isFriendsOnly = note.visibility === 'friends';
-      
-      if (!isOwner && !isExplicitlyShared && !isPublic && !isFriendsOnly) {
-        console.log('Permission denied:', {
-          noteId,
-          userId,
-          noteOwnerId: note.userId,
-          isSharedWith: note.sharedWith,
-          visibility: note.visibility
-        });
-        throw new Error('You do not have permission to comment on this note');
+      const comments = note.comments || [];
+      const timestamp = serverTimestamp();
+
+      // Get user data for the comment
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
       }
-      
-      // Create a new comment with all required fields
-      const newComment: Comment = {
+      const userData = userDoc.data();
+
+      // Add the new comment
+      const newComment = {
         id: crypto.randomUUID(),
         userId,
-        username: userData.username || 'Anonymous',
-        profilePicture: userData.profilePicture || null,
-        text: text.trim(),
-        createdAt: Timestamp.now()
+        username: userData.username,
+        comment,
+        timestamp,
+        profilePicture: userData.profilePicture || null
       };
 
-      // Initialize comments array if it doesn't exist and ensure all existing comments have required fields
-      const existingComments = (note.comments || []).map(comment => ({
-        ...comment,
-        username: comment.username || 'Anonymous',
-        profilePicture: comment.profilePicture || null
-      }));
-      
-      // Create the update object with all required fields
-      const updateData = {
-        comments: [...existingComments, newComment],
-        updatedAt: serverTimestamp()
-      };
+      await updateDoc(noteRef, {
+        comments: [...comments, newComment],
+        updatedAt: timestamp
+      });
 
-      // Update the note with the new comment
-      await updateDoc(noteRef, updateData);
-
-      // Create notification for the note owner if commenter is not the owner
+      // Create notification for note owner if the commenter is not the owner
       if (note.userId !== userId) {
         await notificationsService.createNotification({
           type: 'note_commented',
           senderId: userId,
-          senderUsername: userData.username || 'Anonymous',
+          senderUsername: userData.username,
           recipientId: note.userId,
           targetId: noteId,
-          title: note.title
+          title: note.title,
+          timestamp: serverTimestamp(),
+          read: false
         });
       }
 
-      return newComment;
+      // Get the updated note
+      const updatedNoteDoc = await getDoc(noteRef);
+      return { id: updatedNoteDoc.id, ...updatedNoteDoc.data() } as Note;
     } catch (error) {
       console.error('Error adding comment:', error);
       throw new Error('Failed to add comment');
