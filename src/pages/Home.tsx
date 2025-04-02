@@ -351,6 +351,59 @@ const Home: React.FC = () => {
         </div>
       </div>
 
+      {/* Connect & Share Section */}
+      <div id="connect-share" className="bg-gradient-to-b from-taste-primary/5 to-taste-primary/10 py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-4xl font-serif font-bold text-center mb-8">
+            Dining Together, Made Better
+          </h2>
+          <p className="text-xl text-gray-700 text-center max-w-3xl mx-auto mb-12">
+            Share your food journey with family and friends. From dietary preferences to favorite recipes, 
+            Taste makes every dining experience more enjoyable and inclusive.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="bg-taste-primary/10 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-taste-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-serif font-medium mb-3">Dietary Preferences at a Glance</h3>
+              <p className="text-gray-600">
+                Easily share and view dietary restrictions, allergies, and preferences within your circle. 
+                Make restaurant choices that work for everyone.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="bg-taste-primary/10 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-taste-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M21 21v-7a2 2 0 00-2-2H5a2 2 0 00-2 2v7h18zm-3-9v-2a2 2 0 00-2-2H8a2 2 0 00-2 2v2h12z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-serif font-medium mb-3">Share Family Recipes</h3>
+              <p className="text-gray-600">
+                Keep family traditions alive by sharing and preserving cherished recipes. 
+                Add your own twists and create new memories together.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-12 text-center">
+            <Link 
+              to="/register" 
+              className="inline-flex items-center px-6 py-3 bg-taste-primary text-white font-medium rounded-lg hover:bg-taste-primary/90 transition-colors"
+            >
+              Start Sharing Your Taste
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Features Section */}
       <div id="features" className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4">

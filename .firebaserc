@@ -8,6 +8,14 @@
         "taste-6fd78.appspot.com": [
           "storage"
         ]
+      },
+      "hosting": {
+        "main": [
+          "taste-6fd78"
+        ],
+        "new": [
+          "taste-app-fbf74"
+        ]
       }
     }
   },
