@@ -316,39 +316,7 @@ export const restaurantsService = {
   
   async getFavorites(userId: string, currentUserId?: string): Promise<string[]> {
     try {
-      console.log('Getting favorites for user:', userId, 'Current user:', currentUserId);
-      
-      // For debugging, if currentUserId is provided, validate permissions first
-      if (currentUserId) {
-        const canAccess = await this.canAccessFavorites(userId, currentUserId);
-        console.log('Permission check result:', canAccess);
-        
-        // If we're not ourselves and not a follower, we should expect a permission error
-        if (!canAccess && userId !== currentUserId) {
-          console.log('Expecting permission error based on our checks');
-        }
-      }
-      
-      // For debugging, if currentUserId is provided, check if they're following the target user
-      if (currentUserId && currentUserId !== userId) {
-        try {
-          // Get the target user's profile to check followers
-          const targetUserDocRef = doc(db, `users/${userId}`);
-          const targetUserDoc = await getDoc(targetUserDocRef);
-          
-          if (targetUserDoc.exists()) {
-            const targetUserData = targetUserDoc.data();
-            const followers = targetUserData.followers || [];
-            const isFollower = followers.includes(currentUserId);
-            console.log(`Is current user (${currentUserId}) following target user (${userId}):`, isFollower);
-            console.log('Target user followers:', followers);
-          } else {
-            console.log('Target user profile not found');
-          }
-        } catch (err) {
-          console.error('Error checking follower status:', err);
-        }
-      }
+      console.log('Getting favorites for user:', userId);
       
       const favoritesRef = collection(db, `users/${userId}/favorites`);
       const favoritesSnapshot = await getDocs(favoritesRef);
@@ -357,9 +325,6 @@ export const restaurantsService = {
       
       // Return restaurant names from either the document ID or the restaurantName field
       const favorites = favoritesSnapshot.docs.map(doc => {
-        // Log each document data and ID for debugging
-        console.log('Favorite doc ID:', doc.id, 'Data:', doc.data());
-        
         // First try to get from the restaurantName field
         const restaurantName = doc.data().restaurantName;
         // If that doesn't exist, use the document ID as fallback
@@ -379,7 +344,7 @@ export const restaurantsService = {
     try {
       console.log('Using workaround to get favorites for user:', userId);
       
-      // First try to get the user's profile document which should be accessible to followers
+      // Get the user's profile document
       const userRef = doc(db, `users/${userId}`);
       const userDoc = await getDoc(userRef);
       

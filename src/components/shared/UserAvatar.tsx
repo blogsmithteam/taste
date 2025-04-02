@@ -1,25 +1,20 @@
 import React from 'react';
 import { User } from 'firebase/auth';
 
-type AvatarSize = 'xs' | 'sm' | 'md' | 'lg';
+interface MinimalUser {
+  uid: string;
+  photoURL: string | null;
+  displayName: string | null;
+}
 
 interface UserAvatarProps {
-  user?: User | null;
-  username?: string;
-  profilePicture?: string; 
-  size?: AvatarSize;
+  user: User | MinimalUser | null;
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
 
-const UserAvatar: React.FC<UserAvatarProps> = ({
-  user,
-  username,
-  profilePicture,
-  size = 'md',
-  className = '',
-}) => {
+const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'md', className = '' }) => {
   const sizeClasses = {
-    xs: 'h-6 w-6 text-xs',
     sm: 'h-8 w-8 text-sm',
     md: 'h-10 w-10 text-base',
     lg: 'h-12 w-12 text-lg',
@@ -36,24 +31,11 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
         .substring(0, 2);
     }
     
-    if (username) {
-      return username
-        .split(' ')
-        .map(name => name[0])
-        .join('')
-        .toUpperCase()
-        .substring(0, 2);
-    }
-    
     return 'U';
   };
 
   // Get profile picture from the user object or profilePicture prop
   const getProfilePicture = (): string | null => {
-    if (profilePicture) {
-      return profilePicture;
-    }
-    
     if (user?.photoURL) {
       return user.photoURL;
     }
@@ -71,7 +53,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
       } ${className}`}
     >
       {profilePic ? (
-        <img src={profilePic} alt={`${username || 'User'} avatar`} className="w-full h-full object-cover" />
+        <img src={profilePic} alt="User avatar" className="w-full h-full object-cover" />
       ) : (
         <span className="font-medium">{initials}</span>
       )}

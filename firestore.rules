@@ -156,15 +156,7 @@ service cloud.firestore {
       }
 
       match /favorites/{restaurantId} {
-        allow read: if isAuthenticated() && (
-          isOwner(userId) || 
-          // Allow access if current user is in the profile owner's followers
-          // Check if followers exists and is a list before checking inclusion
-          ('followers' in get(/databases/$(database)/documents/users/$(userId)).data && 
-           get(/databases/$(database)/documents/users/$(userId)).data.followers is list &&
-           request.auth.uid in get(/databases/$(database)/documents/users/$(userId)).data.followers) ||
-          isFamilyMember(userId)
-        );
+        allow read: if isAuthenticated();  // Allow any authenticated user to read favorites
         allow write: if isAuthenticated() && isOwner(userId);
       }
     }

@@ -8,34 +8,19 @@ import { formatDistanceToNow } from 'date-fns';
 import { UserIcon, HeartIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { useUserProfile } from '../hooks/useUserProfile';
-import { activityService } from '../services/activity';
+import { activityService, Activity, ActivityComment } from '../services/activity';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { storage } from '../lib/firebase';
-
-interface Activity {
-  id: string;
-  userId: string;
-  type: 'note_created' | 'note_updated' | 'started_following';
-  targetId: string;
-  timestamp: Timestamp;
-  username: string;
-  title?: string;
-  imageUrl?: string;
-  likes?: number;
-  comments?: number;
-  isLiked?: boolean;
-  rating?: number;
-  location?: {
-    name: string;
-    address?: string;
-  };
-  notes?: string;
-  tags?: string[];
-  targetUsername?: string;
-}
+import UserAvatar from './shared/UserAvatar';
 
 interface UserData {
   username: string;
+}
+
+interface MinimalUser {
+  uid: string;
+  photoURL: string | null;
+  displayName: string | null;
 }
 
 const BATCH_SIZE = 10; // Maximum number of users to query at once
@@ -49,6 +34,9 @@ export const ActivityFeed: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchActivitiesForUserBatch = async (userIds: string[]) => {
@@ -72,6 +60,15 @@ export const ActivityFeed: React.FC = () => {
           snapshot.docs.map(async docSnapshot => {
             const activity = { id: docSnapshot.id, ...docSnapshot.data() } as Activity;
             
+            // Fetch comments for the activity
+            try {
+              const comments = await activityService.getComments(activity.id);
+              activity.activityComments = comments;
+            } catch (commentsError) {
+              console.error('Error fetching comments:', commentsError);
+              activity.activityComments = [];
+            }
+
             // Fetch user data for the activity
             try {
               const userDoc = await getDoc(doc(db, 'users', activity.userId));
@@ -394,8 +391,49 @@ export const ActivityFeed: React.FC = () => {
   };
 
   const handleComment = async (activity: Activity) => {
-    // Navigate to a detailed view or open a comment modal
-    navigate(`/app/activities/${activity.id}`);
+    if (!user) return;
+    
+    // Toggle comment form visibility
+    if (expandedCommentId === activity.id) {
+      setExpandedCommentId(null);
+      setCommentText('');
+      return;
+    }
+    setExpandedCommentId(activity.id);
+  };
+
+  const handleSubmitComment = async (activity: Activity, e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !commentText.trim()) return;
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const newComment = await activityService.addComment(activity.id, user.uid, commentText);
+      
+      // Update the local state to show the new comment
+      setActivities(prevActivities =>
+        prevActivities.map(a =>
+          a.id === activity.id
+            ? { 
+                ...a, 
+                comments: (a.comments || 0) + 1,
+                activityComments: [...(a.activityComments || []), newComment]
+              }
+            : a
+        )
+      );
+
+      // Reset form
+      setCommentText('');
+      setExpandedCommentId(null);
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      setError('Failed to add comment. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (profileLoading || loading) {
@@ -521,29 +559,103 @@ export const ActivityFeed: React.FC = () => {
                 </div>
               )}
               
-              <div className="mt-3 flex items-center gap-6">
-                <button 
-                  onClick={() => handleLike(activity)}
-                  className="group flex items-center gap-2 text-[#536471]"
-                >
-                  {activity.isLiked ? (
-                    <HeartIconSolid className="h-5 w-5 text-red-500" />
-                  ) : (
-                    <HeartIcon className="h-5 w-5 group-hover:text-red-500" />
-                  )}
-                  <span className="text-[13px] group-hover:text-red-500">
-                    {activity.likes || 0}
-                  </span>
-                </button>
-                <button 
-                  onClick={() => handleComment(activity)}
-                  className="group flex items-center gap-2 text-[#536471]"
-                >
-                  <ChatBubbleLeftIcon className="h-5 w-5 group-hover:text-[#1D9BF0]" />
-                  <span className="text-[13px] group-hover:text-[#1D9BF0]">
-                    {activity.comments || 0}
-                  </span>
-                </button>
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center gap-6">
+                  <button 
+                    onClick={() => handleLike(activity)}
+                    className="group flex items-center gap-2 text-[#536471]"
+                  >
+                    {activity.isLiked ? (
+                      <HeartIconSolid className="h-5 w-5 text-red-500" />
+                    ) : (
+                      <HeartIcon className="h-5 w-5 group-hover:text-red-500" />
+                    )}
+                    <span className="text-[13px] group-hover:text-red-500">
+                      {activity.likes || 0}
+                    </span>
+                  </button>
+                  <button 
+                    onClick={() => handleComment(activity)}
+                    className="group flex items-center gap-2 text-[#536471]"
+                  >
+                    <ChatBubbleLeftIcon className="h-5 w-5 group-hover:text-[#1D9BF0]" />
+                    <span className="text-[13px] group-hover:text-[#1D9BF0]">
+                      {activity.comments || 0}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Display Comments */}
+                {activity.activityComments && activity.activityComments.length > 0 && (
+                  <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+                    {activity.activityComments.map((comment) => (
+                      <div key={comment.id} className="flex gap-3">
+                        <UserAvatar
+                          user={{ 
+                            uid: comment.userId,
+                            photoURL: comment.profilePicture || null,
+                            displayName: comment.username
+                          } as MinimalUser}
+                          size="sm"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleUserClick(comment.userId)}
+                              className="text-sm font-semibold text-[#0F1419] hover:underline"
+                            >
+                              {comment.username}
+                            </button>
+                            <span className="text-xs text-[#536471]">
+                              {formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-[#0F1419] mt-0.5">{comment.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Inline Comment Form */}
+                {expandedCommentId === activity.id && (
+                  <form onSubmit={(e) => handleSubmitComment(activity, e)} className="mt-3">
+                    <div className="flex gap-3">
+                      <UserAvatar user={user} size="sm" />
+                      <div className="flex-1">
+                        <textarea
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          placeholder="Add your comment..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1D9BF0] focus:border-transparent resize-none"
+                          rows={2}
+                          maxLength={500}
+                        />
+                        {error && <p className="mt-1 text-red-500 text-sm">{error}</p>}
+                        <div className="mt-2 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setExpandedCommentId(null);
+                              setCommentText('');
+                            }}
+                            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isSubmitting || !commentText.trim()}
+                            className="px-4 py-2 bg-[#1D9BF0] text-white rounded-lg hover:bg-[#1A8CD8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isSubmitting ? 'Posting...' : 'Post'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </div>

@@ -139,43 +139,35 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
     const fetchFavoriteRestaurants = async () => {
       if (!profile || !user) return;
       
-      // Only fetch favorites if:
-      // 1. This is the user's own profile OR
-      // 2. The user is following the profile owner
-      if (userId === user.uid || profile.followers?.includes(user.uid)) {
+      try {
+        console.log('Fetching favorite restaurants for user:', userId);
+        console.log('Current user:', user.uid);
+        
+        let favorites: string[] = [];
+        
+        // Try the workaround first (since it's more reliable)
         try {
-          console.log('Fetching favorite restaurants for user:', userId);
-          console.log('Current user is a follower:', profile.followers?.includes(user.uid));
-          console.log('Profile followers:', profile.followers);
+          favorites = await restaurantsService.getFavoritesWorkaround(userId, user.uid);
+          console.log('Favorite restaurants fetched via workaround:', favorites);
+        } catch (innerErr) {
+          console.error('Workaround failed, trying direct method:', innerErr);
           
-          let favorites: string[] = [];
-          
-          // Try the workaround first (since it's more reliable for followers)
+          // Fall back to the original method if workaround fails
           try {
-            favorites = await restaurantsService.getFavoritesWorkaround(userId, user.uid);
-            console.log('Favorite restaurants fetched via workaround:', favorites);
-          } catch (innerErr) {
-            console.error('Workaround failed, trying direct method:', innerErr);
-            
-            // Fall back to the original method if workaround fails
-            try {
-              favorites = await restaurantsService.getFavorites(userId, user.uid);
-              console.log('Favorite restaurants fetched via direct method:', favorites);
-            } catch (directErr) {
-              console.error('All methods to fetch favorites failed:', directErr);
-              // If both methods fail, use an empty array
-              favorites = [];
-            }
+            favorites = await restaurantsService.getFavorites(userId, user.uid);
+            console.log('Favorite restaurants fetched via direct method:', favorites);
+          } catch (directErr) {
+            console.error('All methods to fetch favorites failed:', directErr);
+            // If both methods fail, use an empty array
+            favorites = [];
           }
-          
-          setFavoriteRestaurants(favorites);
-        } catch (err) {
-          console.error('Error loading favorite restaurants:', err);
-          // Set empty array on error to avoid undefined errors in the UI
-          setFavoriteRestaurants([]);
         }
-      } else {
-        console.log('Not fetching favorite restaurants because user is not the owner or a follower');
+        
+        setFavoriteRestaurants(favorites);
+      } catch (err) {
+        console.error('Error loading favorite restaurants:', err);
+        // Set empty array on error to avoid undefined errors in the UI
+        setFavoriteRestaurants([]);
       }
     };
 

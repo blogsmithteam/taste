@@ -1088,9 +1088,6 @@ export const notesService = {
       const isOwner = note.userId === userId;
       const isExplicitlyShared = note.sharedWith && note.sharedWith.includes(userId);
       const isPublic = note.visibility === 'public';
-      
-      // For friends-only notes, we'll assume it's accessible for now
-      // In a production app, you would check if the user is a friend of the note owner
       const isFriendsOnly = note.visibility === 'friends';
       
       if (!isOwner && !isExplicitlyShared && !isPublic && !isFriendsOnly) {
@@ -1104,29 +1101,38 @@ export const notesService = {
         throw new Error('You do not have permission to comment on this note');
       }
       
-      // Create a new comment
+      // Create a new comment with all required fields
       const newComment: Comment = {
-        id: crypto.randomUUID(), // Generate a random ID
+        id: crypto.randomUUID(),
         userId,
-        username: userData.username,
-        profilePicture: userData.profilePicture,
-        text,
+        username: userData.username || 'Anonymous',
+        profilePicture: userData.profilePicture || null,
+        text: text.trim(),
         createdAt: Timestamp.now()
       };
 
-      // Add the comment to the note
-      const existingComments = note.comments || [];
-      await updateDoc(noteRef, {
+      // Initialize comments array if it doesn't exist and ensure all existing comments have required fields
+      const existingComments = (note.comments || []).map(comment => ({
+        ...comment,
+        username: comment.username || 'Anonymous',
+        profilePicture: comment.profilePicture || null
+      }));
+      
+      // Create the update object with all required fields
+      const updateData = {
         comments: [...existingComments, newComment],
         updatedAt: serverTimestamp()
-      });
+      };
+
+      // Update the note with the new comment
+      await updateDoc(noteRef, updateData);
 
       // Create notification for the note owner if commenter is not the owner
       if (note.userId !== userId) {
         await notificationsService.createNotification({
           type: 'note_commented',
           senderId: userId,
-          senderUsername: userData.username,
+          senderUsername: userData.username || 'Anonymous',
           recipientId: note.userId,
           targetId: noteId,
           title: note.title

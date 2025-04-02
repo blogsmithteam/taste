@@ -1,6 +1,7 @@
-import { collection, addDoc, serverTimestamp, updateDoc, increment, arrayUnion, arrayRemove, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, updateDoc, increment, arrayUnion, arrayRemove, doc, getDoc, Timestamp, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { User } from 'firebase/auth';
+import { notificationsService } from './notifications';
 
 type ActivityType = 'note_created' | 'note_updated' | 'started_following';
 
@@ -22,7 +23,48 @@ interface CreateActivityData {
   targetProfilePicture?: string;
 }
 
-class ActivityService {
+export interface ActivityComment {
+  id: string;
+  userId: string;
+  username: string;
+  profilePicture?: string | null;
+  text: string;
+  createdAt: Timestamp;
+}
+
+export interface Activity {
+  id: string;
+  userId: string;
+  type: 'note_created' | 'note_updated' | 'started_following';
+  targetId: string;
+  title?: string;
+  timestamp: Timestamp;
+  username: string;
+  imageUrl?: string;
+  likes?: number;
+  likedBy?: string[];
+  comments?: number;
+  activityComments?: ActivityComment[];
+  isLiked?: boolean;
+  rating?: number;
+  location?: {
+    name: string;
+    address?: string;
+  };
+  notes?: string;
+  tags?: string[];
+  targetUsername?: string;
+  targetProfilePicture?: string;
+}
+
+export interface ActivityService {
+  createActivity(user: User, data: CreateActivityData): Promise<void>;
+  toggleLike(activityId: string, userId: string): Promise<boolean>;
+  addComment(activityId: string, userId: string, text: string): Promise<ActivityComment>;
+  getComments(activityId: string): Promise<ActivityComment[]>;
+}
+
+export class ActivityService {
   async createActivity(user: User, data: CreateActivityData) {
     try {
       // Ensure we have a valid user
@@ -81,7 +123,66 @@ class ActivityService {
     }
   }
 
-  async addComment(activityId: string, userId: string, comment: string) {
+  async addComment(activityId: string, userId: string, text: string): Promise<ActivityComment> {
+    if (!userId) throw new Error('User ID is required');
+    if (!activityId) throw new Error('Activity ID is required');
+    if (!text.trim()) throw new Error('Comment text is required');
+
+    try {
+      // Get user info for the comment
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+      const userData = userDoc.data();
+
+      // Get the activity
+      const activityRef = doc(db, 'activities', activityId);
+      const activityDoc = await getDoc(activityRef);
+
+      if (!activityDoc.exists()) {
+        throw new Error('Activity not found');
+      }
+
+      const activity = activityDoc.data();
+      
+      // Create a new comment
+      const newComment: ActivityComment = {
+        id: crypto.randomUUID(),
+        userId,
+        username: userData.username || 'Anonymous',
+        profilePicture: userData.profilePicture || null,
+        text: text.trim(),
+        createdAt: Timestamp.now()
+      };
+
+      // Update the activity with the new comment
+      await updateDoc(activityRef, {
+        activityComments: arrayUnion(newComment),
+        comments: (activity.comments || 0) + 1,
+        updatedAt: serverTimestamp()
+      });
+
+      // Create notification for the activity owner if commenter is not the owner
+      if (activity.userId !== userId) {
+        await notificationsService.createNotification({
+          type: 'note_commented',
+          senderId: userId,
+          senderUsername: userData.username || 'Anonymous',
+          recipientId: activity.userId,
+          targetId: activityId,
+          title: activity.title || 'activity'
+        });
+      }
+
+      return newComment;
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw new Error('Failed to add comment');
+    }
+  }
+
+  async getComments(activityId: string): Promise<ActivityComment[]> {
     try {
       const activityRef = doc(db, 'activities', activityId);
       const activityDoc = await getDoc(activityRef);
@@ -90,20 +191,11 @@ class ActivityService {
         throw new Error('Activity not found');
       }
 
-      await updateDoc(activityRef, {
-        comments: increment(1)
-      });
-
-      // Add comment to a separate comments collection
-      await addDoc(collection(db, 'activity_comments'), {
-        activityId,
-        userId,
-        comment,
-        timestamp: serverTimestamp()
-      });
+      const activity = activityDoc.data();
+      return activity.activityComments || [];
     } catch (error) {
-      console.error('Error adding comment:', error);
-      throw error;
+      console.error('Error getting comments:', error);
+      throw new Error('Failed to get comments');
     }
   }
 }

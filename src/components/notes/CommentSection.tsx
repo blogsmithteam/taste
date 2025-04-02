@@ -44,9 +44,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       currentUserId: user?.uid,
       shouldShowInteractions,
       likes: likeCount,
-      likedBy 
+      likedBy,
+      commentCount: noteComments.length
     });
-  }, [isSharedNote, noteId, noteUserId, user, shouldShowInteractions, likeCount, likedBy]);
+  }, [isSharedNote, noteId, noteUserId, user, shouldShowInteractions, likeCount, likedBy, noteComments.length]);
 
   useEffect(() => {
     if (user && likedBy.includes(user.uid)) {
