@@ -161,10 +161,11 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
       if (!profile || !user) return;
       
       try {
-        // Only fetch favorite restaurants if we have access to the profile
-        if (!profile.settings?.isPrivate || user.uid === profile.id || profile.followers?.includes(user.uid)) {
+        // Always fetch favorites if it's the user's own profile
+        if (user.uid === userId || !profile.settings?.isPrivate || profile.followers?.includes(user.uid)) {
           console.log('Fetching favorite restaurants for user:', userId);
           console.log('Current user:', user.uid);
+          console.log('Is own profile:', user.uid === userId);
           
           let favorites: string[] = [];
           
@@ -219,6 +220,26 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
 
   // Only show pending requests if this is the user's own profile and they have private profile enabled
   const showPendingRequests = user?.uid === userId && profile?.settings?.isPrivate;
+
+  // Add this new handler
+  const handleToggleFavorite = async (restaurantName: string) => {
+    if (!user) return;
+    
+    try {
+      const isFavorited = await restaurantsService.toggleFavorite(user.uid, restaurantName);
+      
+      // Update the local state immediately
+      if (isFavorited) {
+        setFavoriteRestaurants(prev => [...prev, restaurantName]);
+      } else {
+        setFavoriteRestaurants(prev => 
+          prev.filter(name => name.toLowerCase() !== restaurantName.toLowerCase())
+        );
+      }
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+    }
+  };
 
   if (loading) {
     return (
@@ -508,20 +529,35 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                             
                             return (
                               <div 
-                                key={restaurantName} 
-                                onClick={() => bestNote ? handleNoteClick(bestNote.id) : null}
-                                className="bg-white rounded-lg shadow-sm border border-taste-primary/10 p-4 hover:shadow-md transition-shadow cursor-pointer"
+                                key={restaurantName}
+                                className="bg-white rounded-lg shadow-sm border border-taste-primary/10 p-4 hover:shadow-md transition-shadow"
                               >
                                 <div className="flex justify-between items-start mb-2">
                                   <h4 className="text-lg font-medium text-taste-primary">{restaurantName}</h4>
-                                  {bestNote && (
-                                    <div className="flex items-center">
-                                      <StarIcon className="h-5 w-5 text-yellow-400 fill-current" />
-                                      <span className="ml-1 text-sm text-gray-600">{bestNote.rating}/5</span>
-                                    </div>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                    {bestNote && (
+                                      <div className="flex items-center">
+                                        <StarIcon className="h-5 w-5 text-yellow-400 fill-current" />
+                                        <span className="ml-1 text-sm text-gray-600">{bestNote.rating}/5</span>
+                                      </div>
+                                    )}
+                                    {user?.uid === userId && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleFavorite(restaurantName);
+                                        }}
+                                        className="text-taste-primary hover:text-taste-primary-dark"
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="text-sm text-gray-600">
+                                <div 
+                                  onClick={() => bestNote ? handleNoteClick(bestNote.id) : null}
+                                  className="text-sm text-gray-600 cursor-pointer"
+                                >
                                   {restaurantNotes.length} {restaurantNotes.length === 1 ? 'note' : 'notes'}
                                 </div>
                               </div>

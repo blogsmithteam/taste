@@ -221,9 +221,17 @@ export const restaurantsService = {
   },
 
   async toggleFavorite(userId: string, restaurantName: string): Promise<boolean> {
+    if (!userId || !restaurantName) {
+      console.error('Missing required parameters');
+      throw new Error('User ID and restaurant name are required');
+    }
+
     try {
+      console.log('Toggling favorite for:', { userId, restaurantName });
+      
       // Normalize the restaurant name to avoid issues with case sensitivity or extra spaces
-      const normalizedName = restaurantName.trim();
+      const normalizedName = restaurantName.trim().toLowerCase();
+      console.log('Normalized restaurant name:', normalizedName);
       
       // Use a consistent document ID based on the restaurant name
       const favoritesRef = doc(db, `users/${userId}/favorites/${normalizedName}`);
@@ -238,40 +246,53 @@ export const restaurantsService = {
       }
       
       const userData = userDoc.data();
+      console.log('Current user data:', userData);
       const currentFavorites = userData.favoriteRestaurants || [];
+      console.log('Current favorites array:', currentFavorites);
       
       // Check if this restaurant is already favorited
       const docSnapshot = await getDoc(favoritesRef);
+      console.log('Favorite document exists:', docSnapshot.exists());
       
       if (docSnapshot.exists()) {
         // Restaurant is already a favorite, so remove it
+        console.log('Removing restaurant from favorites');
         await deleteDoc(favoritesRef);
         
         // Also remove from the user document array
-        const updatedFavorites = currentFavorites.filter((name: string) => name !== normalizedName);
+        const updatedFavorites = currentFavorites.filter((name: string) => 
+          name.toLowerCase() !== normalizedName
+        );
+        console.log('Updated favorites array after removal:', updatedFavorites);
+        
         await updateDoc(userRef, {
           favoriteRestaurants: updatedFavorites,
           updatedAt: serverTimestamp()
         });
         
-        console.log('Removed restaurant from favorites:', normalizedName);
+        console.log('Successfully removed restaurant from favorites:', normalizedName);
         return false;
       } else {
         // Restaurant is not a favorite, so add it
+        console.log('Adding restaurant to favorites');
         await setDoc(favoritesRef, {
-          restaurantName: normalizedName,
+          restaurantName: restaurantName.trim(), // Store original name but use normalized for ID
+          normalizedName: normalizedName,
           createdAt: serverTimestamp(),
         });
         
         // Add to the user document array if not already there
-        if (!currentFavorites.includes(normalizedName)) {
+        if (!currentFavorites.some((name: string) => name.toLowerCase() === normalizedName)) {
+          const newFavorites = [...currentFavorites, restaurantName.trim()];
+          console.log('Updated favorites array after addition:', newFavorites);
+          
           await updateDoc(userRef, {
-            favoriteRestaurants: [...currentFavorites, normalizedName],
+            favoriteRestaurants: newFavorites,
             updatedAt: serverTimestamp()
           });
         }
         
-        console.log('Added restaurant to favorites:', normalizedName);
+        console.log('Successfully added restaurant to favorites:', normalizedName);
         return true;
       }
     } catch (error) {
@@ -318,24 +339,52 @@ export const restaurantsService = {
     try {
       console.log('Getting favorites for user:', userId);
       
+      // First check if we have permission to access the favorites
+      if (currentUserId && userId !== currentUserId) {
+        // Only check permissions if we're not accessing our own favorites
+        const hasAccess = await this.canAccessFavorites(userId, currentUserId);
+        if (!hasAccess) {
+          console.log('User does not have permission to access favorites');
+          return [];
+        }
+      }
+
+      // Get favorites from both sources
+      const favorites = new Set<string>();
+      
+      // 1. Check the user document array first
+      const userRef = doc(db, `users/${userId}`);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.favoriteRestaurants && Array.isArray(userData.favoriteRestaurants)) {
+          userData.favoriteRestaurants.forEach(name => favorites.add(name));
+        }
+      }
+      
+      // 2. Check the favorites subcollection
       const favoritesRef = collection(db, `users/${userId}/favorites`);
       const favoritesSnapshot = await getDocs(favoritesRef);
       
       console.log('Favorites snapshot size:', favoritesSnapshot.size);
       
-      // Return restaurant names from either the document ID or the restaurantName field
-      const favorites = favoritesSnapshot.docs.map(doc => {
+      // Add favorites from subcollection
+      favoritesSnapshot.docs.forEach(doc => {
+        const data = doc.data();
         // First try to get from the restaurantName field
-        const restaurantName = doc.data().restaurantName;
+        const restaurantName = data.restaurantName;
         // If that doesn't exist, use the document ID as fallback
-        return restaurantName || doc.id;
+        favorites.add(restaurantName || doc.id);
       });
       
-      console.log('Returning favorites:', favorites);
-      return favorites;
+      const result = Array.from(favorites);
+      console.log('Returning favorites:', result);
+      return result;
     } catch (error) {
       console.error('Error getting favorites:', error);
-      throw new Error('Failed to get favorites');
+      // Return empty array instead of throwing to prevent UI breaks
+      return [];
     }
   },
 

@@ -189,7 +189,11 @@ service cloud.firestore {
       }
 
       match /favorites/{restaurantId} {
-        allow read: if isAuthenticated();  // Allow any authenticated user to read favorites
+        allow read: if isAuthenticated() && (
+          isOwner(userId) ||
+          !get(/databases/$(database)/documents/users/$(userId)).data.settings.isPrivate ||
+          request.auth.uid in get(/databases/$(database)/documents/users/$(userId)).data.followers
+        );
         allow write: if isAuthenticated() && isOwner(userId);
       }
     }
