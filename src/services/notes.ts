@@ -501,10 +501,18 @@ export const notesService = {
         throw new Error('Not authorized to update this note');
       }
 
+      // Clean up the data by removing undefined values and converting date
+      const cleanedData = Object.entries(data).reduce((acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
       // Convert date string to Timestamp if it exists in the update data
       const updateData = {
-        ...data,
-        ...(data.date && { date: Timestamp.fromDate(new Date(data.date)) }),
+        ...cleanedData,
+        ...(cleanedData.date && { date: Timestamp.fromDate(new Date(cleanedData.date)) }),
         updatedAt: serverTimestamp()
       };
 

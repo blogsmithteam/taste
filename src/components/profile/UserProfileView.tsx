@@ -34,6 +34,8 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [restaurantFilter, setRestaurantFilter] = useState('');
   const [favoriteRestaurants, setFavoriteRestaurants] = useState<string[]>([]);
+  const [restaurantNotesCounts, setRestaurantNotesCounts] = useState<Record<string, number>>({});
+  const [loadingNoteCounts, setLoadingNoteCounts] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -164,25 +166,9 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
         // Always fetch favorites if it's the user's own profile
         if (user.uid === userId || !profile.settings?.isPrivate || profile.followers?.includes(user.uid)) {
           console.log('Fetching favorite restaurants for user:', userId);
-          console.log('Current user:', user.uid);
-          console.log('Is own profile:', user.uid === userId);
           
-          let favorites: string[] = [];
-          
-          try {
-            favorites = await restaurantsService.getFavoritesWorkaround(userId, user.uid);
-            console.log('Favorite restaurants fetched via workaround:', favorites);
-          } catch (innerErr) {
-            console.error('Workaround failed, trying direct method:', innerErr);
-            
-            try {
-              favorites = await restaurantsService.getFavorites(userId, user.uid);
-              console.log('Favorite restaurants fetched via direct method:', favorites);
-            } catch (directErr) {
-              console.error('All methods to fetch favorites failed:', directErr);
-              favorites = [];
-            }
-          }
+          const favorites = await restaurantsService.getFavorites(userId, user.uid);
+          console.log('Favorite restaurants fetched:', favorites);
           
           setFavoriteRestaurants(favorites);
         }
@@ -192,11 +178,34 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
       }
     };
 
+    const fetchRestaurantNotesCounts = async () => {
+      if (!profile || !user || favoriteRestaurants.length === 0) return;
+      
+      setLoadingNoteCounts(true);
+      const counts: Record<string, number> = {};
+      
+      try {
+        await Promise.all(
+          favoriteRestaurants.map(async (restaurantName) => {
+            const count = await restaurantsService.getRestaurantNotesCount(userId, restaurantName, user.uid);
+            counts[restaurantName] = count;
+          })
+        );
+        
+        setRestaurantNotesCounts(counts);
+      } catch (err) {
+        console.error('Error fetching restaurant note counts:', err);
+      } finally {
+        setLoadingNoteCounts(false);
+      }
+    };
+
     fetchFollowers();
     fetchFollowing();
     fetchFamilyMembers();
     fetchUserNotes();
     fetchFavoriteRestaurants();
+    fetchRestaurantNotesCounts();
   }, [userId, user, profile]);
 
   const handleCopyProfileLink = async () => {
@@ -517,15 +526,14 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                             !restaurantFilter || 
                             restaurantName.toLowerCase().includes(restaurantFilter.toLowerCase())
                           )
-                          .slice(0, 6)
                           .map(restaurantName => {
-                            const restaurantNotes = recentNotes
+                            const notesCount = restaurantNotesCounts[restaurantName] || 0;
+                            const bestNote = recentNotes
                               .filter(note => 
                                 note.location?.name && 
                                 note.location.name.toLowerCase() === restaurantName.toLowerCase()
                               )
-                              .sort((a, b) => b.rating - a.rating);
-                            const bestNote = restaurantNotes[0];
+                              .sort((a, b) => b.rating - a.rating)[0];
                             
                             return (
                               <div 
@@ -558,7 +566,17 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                                   onClick={() => bestNote ? handleNoteClick(bestNote.id) : null}
                                   className="text-sm text-gray-600 cursor-pointer"
                                 >
-                                  {restaurantNotes.length} {restaurantNotes.length === 1 ? 'note' : 'notes'}
+                                  {loadingNoteCounts ? (
+                                    <span className="inline-flex items-center">
+                                      <svg className="animate-spin h-4 w-4 mr-2 text-gray-400" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                      </svg>
+                                      Loading notes...
+                                    </span>
+                                  ) : (
+                                    <>{notesCount} {notesCount === 1 ? 'note' : 'notes'}</>
+                                  )}
                                 </div>
                               </div>
                             );
