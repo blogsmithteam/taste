@@ -21,6 +21,15 @@ export interface MenuItem {
 }
 
 export const restaurantsService = {
+  // Utility function to normalize restaurant names
+  normalizeRestaurantName(name: string): string {
+    return name
+      .toLowerCase() // convert to lowercase
+      .trim() // remove leading/trailing spaces
+      .replace(/\s+/g, '') // remove all spaces
+      .replace(/[^a-z0-9]/g, ''); // remove special characters
+  },
+
   async searchRestaurants(searchTerm: string): Promise<Restaurant[]> {
     if (!searchTerm.trim()) return [];
 
@@ -231,17 +240,17 @@ export const restaurantsService = {
 
       const userData = userDoc.data();
       const favorites = userData.favoriteRestaurants || [];
-      const normalizedName = restaurantName.trim();
+      const normalizedName = this.normalizeRestaurantName(restaurantName.trim());
       
-      // Check if restaurant is already favorited
+      // Check if restaurant is already favorited (using normalized comparison)
       const index = favorites.findIndex(
-        (name: string) => name.toLowerCase() === normalizedName.toLowerCase()
+        (name: string) => this.normalizeRestaurantName(name) === normalizedName
       );
       
       let newFavorites;
       if (index === -1) {
-        // Add to favorites
-        newFavorites = [...favorites, normalizedName];
+        // Add to favorites (use original name for display)
+        newFavorites = [...favorites, restaurantName.trim()];
       } else {
         // Remove from favorites
         newFavorites = favorites.filter((_: string, i: number) => i !== index);
@@ -293,6 +302,39 @@ export const restaurantsService = {
     }
   },
   
+  async getFavorites(userId: string, currentUserId?: string): Promise<string[]> {
+    try {
+      console.log('Getting favorites for user:', userId);
+      
+      // First check if we have permission to access the favorites
+      if (currentUserId && userId !== currentUserId) {
+        // Only check permissions if we're not accessing our own favorites
+        const hasAccess = await this.canAccessFavorites(userId, currentUserId);
+        if (!hasAccess) {
+          console.log('User does not have permission to access favorites');
+          return [];
+        }
+      }
+
+      // Get favorites from user document only
+      const userRef = doc(db, `users/${userId}`);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.favoriteRestaurants && Array.isArray(userData.favoriteRestaurants)) {
+          return userData.favoriteRestaurants;
+        }
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Error getting favorites:', error);
+      return [];
+    }
+  },
+
+  // Keep migration function separate - only call when needed for version updates
   async migrateFavorites(userId: string): Promise<void> {
     try {
       console.log('Starting favorites migration for user:', userId);
@@ -325,55 +367,10 @@ export const restaurantsService = {
         favoriteRestaurants: Array.from(favorites)
       });
       
-      // 4. Optionally, clean up old subcollection
-      // Commenting out for safety - uncomment when ready to clean up
-      // for (const doc of favoritesSnapshot.docs) {
-      //   await deleteDoc(doc.ref);
-      // }
-      
       console.log('Favorites migration completed. Total favorites:', favorites.size);
     } catch (error) {
       console.error('Error during favorites migration:', error);
       throw error;
-    }
-  },
-
-  async getFavorites(userId: string, currentUserId?: string): Promise<string[]> {
-    try {
-      console.log('Getting favorites for user:', userId);
-      
-      // First check if we have permission to access the favorites
-      if (currentUserId && userId !== currentUserId) {
-        // Only check permissions if we're not accessing our own favorites
-        const hasAccess = await this.canAccessFavorites(userId, currentUserId);
-        if (!hasAccess) {
-          console.log('User does not have permission to access favorites');
-          return [];
-        }
-      }
-
-      // Try to migrate favorites if needed
-      try {
-        await this.migrateFavorites(userId);
-      } catch (migrationError) {
-        console.error('Migration failed, will proceed with getting favorites:', migrationError);
-      }
-
-      // Get favorites from user document
-      const userRef = doc(db, `users/${userId}`);
-      const userDoc = await getDoc(userRef);
-      
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        if (userData.favoriteRestaurants && Array.isArray(userData.favoriteRestaurants)) {
-          return userData.favoriteRestaurants;
-        }
-      }
-      
-      return [];
-    } catch (error) {
-      console.error('Error getting favorites:', error);
-      return [];
     }
   },
 

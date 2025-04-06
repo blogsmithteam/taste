@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Note, notesService } from '../services/notes';
 import { useAuth } from '../contexts/AuthContext';
 import { NoteCard } from '../components/notes/NoteCard';
@@ -18,10 +18,20 @@ interface Restaurant {
 const RestaurantPage: React.FC = () => {
   const { restaurantId } = useParams<{ restaurantId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Utility function to normalize restaurant names
+  const normalizeRestaurantName = (name: string): string => {
+    return name
+      .toLowerCase() // convert to lowercase
+      .trim() // remove leading/trailing spaces
+      .replace(/\s+/g, '') // remove all spaces
+      .replace(/[^a-z0-9]/g, ''); // remove special characters
+  };
 
   useEffect(() => {
     const fetchRestaurantData = async () => {
@@ -30,42 +40,68 @@ const RestaurantPage: React.FC = () => {
       try {
         setIsLoading(true);
         const { notes: userNotes } = await notesService.fetchNotes(user.uid);
-        console.log('All user notes:', userNotes); // Debug log
+        console.log('Debug - Note fetching:', {
+          userId: user.uid,
+          totalNotes: userNotes.length,
+          allNotes: userNotes.map(note => ({
+            id: note.id,
+            title: note.title,
+            type: note.type,
+            location: note.location,
+            visibility: note.visibility,
+            userId: note.userId
+          }))
+        });
         
         // Decode the restaurant name from the URL
         const decodedRestaurantName = decodeURIComponent(restaurantId);
-        console.log('Looking for restaurant:', decodedRestaurantName); // Debug log
-        
-        // Log all restaurant names for debugging
-        const allRestaurantNames = userNotes
-          .filter(note => note.type === 'restaurant' && note.location?.name)
-          .map(note => note.location!.name);
-        console.log('All restaurant names in notes:', allRestaurantNames);
+        const searchNormalized = normalizeRestaurantName(decodedRestaurantName);
+        console.log('Looking for restaurant:', {
+          original: decodedRestaurantName,
+          normalized: searchNormalized
+        });
         
         // Filter notes for this restaurant
         const restaurantNotes = userNotes.filter(note => {
-          console.log('Checking note:', {
-            id: note.id,
-            type: note.type,
-            title: note.title,
-            location: note.location,
-            visibility: note.visibility
-          });
-          
-          const isMatch = note.type === 'restaurant' && 
-                         note.location?.name?.toLowerCase() === decodedRestaurantName.toLowerCase();
-          
-          if (isMatch) {
-            console.log('Found matching note:', note);
+          if (note.type !== 'restaurant' || !note.location?.name) {
+            console.log('Debug - Skipping note:', {
+              id: note.id,
+              type: note.type,
+              hasLocation: !!note.location,
+              hasName: !!note.location?.name
+            });
+            return false;
           }
-          
-          return isMatch;
+          const locationNormalized = normalizeRestaurantName(note.location.name);
+          const matches = locationNormalized === searchNormalized;
+          console.log('Debug - Comparing restaurant:', {
+            noteId: note.id,
+            original: {
+              location: note.location.name,
+              searching: decodedRestaurantName
+            },
+            normalized: {
+              location: locationNormalized,
+              search: searchNormalized
+            },
+            matches
+          });
+          return matches;
         });
 
-        console.log('Found restaurant notes:', restaurantNotes); // Debug log
+        console.log('Found restaurant notes:', restaurantNotes);
 
         if (restaurantNotes.length === 0) {
-          console.log('No notes found for restaurant:', decodedRestaurantName); // Debug log
+          console.log('No notes found for restaurant:', {
+            searching: decodedRestaurantName,
+            normalized: searchNormalized,
+            availableRestaurants: userNotes
+              .filter(note => note.type === 'restaurant' && note.location?.name)
+              .map(note => ({
+                name: note.location!.name,
+                normalized: normalizeRestaurantName(note.location!.name)
+              }))
+          });
           setError('Restaurant not found');
           setIsLoading(false);
           return;
@@ -104,6 +140,15 @@ const RestaurantPage: React.FC = () => {
     navigate(`/app/notes/${noteId}`, { state: { from: `/app/restaurants/${restaurantId}` } });
   };
 
+  const handleBackClick = () => {
+    const { from, userId } = location.state || {};
+    if (from === 'profile' && userId) {
+      navigate(`/app/users/${userId}`);
+    } else {
+      navigate('/app/restaurants');
+    }
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-[#FDF1ED] flex items-center justify-center">
@@ -125,11 +170,13 @@ const RestaurantPage: React.FC = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           <button
-            onClick={() => navigate('/app/restaurants')}
+            onClick={handleBackClick}
             className="inline-flex items-center text-[#E76F51] hover:text-[#E76F51]/80 transition-colors mb-6"
           >
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            <span>Back to Restaurants</span>
+            <span>
+              {location.state?.from === 'profile' ? 'Back to Profile' : 'Back to Restaurants'}
+            </span>
           </button>
 
           <div className="bg-white rounded-lg shadow-sm border border-[#E76F51]/10 p-6 text-center">
@@ -144,11 +191,13 @@ const RestaurantPage: React.FC = () => {
     <div className="container mx-auto px-4 py-8 animate-fade-in">
       <div className="max-w-7xl mx-auto">
         <button
-          onClick={() => navigate('/app/restaurants')}
+          onClick={handleBackClick}
           className="inline-flex items-center text-[#E76F51] hover:text-[#E76F51]/80 transition-colors mb-6"
         >
           <ArrowLeftIcon className="h-5 w-5 mr-2" />
-          <span>Back to Restaurants</span>
+          <span>
+            {location.state?.from === 'profile' ? 'Back to Profile' : 'Back to Restaurants'}
+          </span>
         </button>
 
         <div className="bg-white rounded-lg shadow-sm border border-[#E76F51]/10 p-6 mb-8">

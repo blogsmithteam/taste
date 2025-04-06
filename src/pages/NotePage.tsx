@@ -30,9 +30,10 @@ const NotePage: React.FC = () => {
     '/app/tasting-notes': 'Notes',
     '/app/shared-with-me': 'Shared Notes',
     '/app/activity': 'Activity Feed',
-    '/app/notifications': 'Notifications'
+    '/app/notifications': 'Notifications',
+    '/app/users': 'Profile'
   };
-  const sourceName = sourceRouteMap[sourceRoute] || 'Notes';
+  const sourceName = sourceRoute.startsWith('/app/users/') ? 'Profile' : (sourceRouteMap[sourceRoute] || 'Notes');
 
   useEffect(() => {
     const fetchNote = async () => {

@@ -224,7 +224,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
   };
 
   const handleNoteClick = (noteId: string) => {
-    navigate(`/app/notes/${noteId}`);
+    navigate(`/app/notes/${noteId}`, { state: { from: `/app/users/${userId}` } });
   };
 
   // Only show pending requests if this is the user's own profile and they have private profile enabled
@@ -563,8 +563,19 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                                   </div>
                                 </div>
                                 <div 
-                                  onClick={() => bestNote ? handleNoteClick(bestNote.id) : null}
-                                  className="text-sm text-gray-600 cursor-pointer"
+                                  onClick={() => {
+                                    console.log('Navigating to restaurant:', {
+                                      name: restaurantName,
+                                      encoded: encodeURIComponent(restaurantName),
+                                      matchingNotes: recentNotes.filter(note => 
+                                        note.location?.name?.toLowerCase() === restaurantName.toLowerCase()
+                                      )
+                                    });
+                                    navigate(`/app/restaurants/${encodeURIComponent(restaurantName)}`, { 
+                                      state: { from: 'profile', userId }
+                                    });
+                                  }}
+                                  className="text-sm text-gray-600 cursor-pointer hover:text-taste-primary transition-colors"
                                 >
                                   {loadingNoteCounts ? (
                                     <span className="inline-flex items-center">
@@ -575,7 +586,9 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                                       Loading notes...
                                     </span>
                                   ) : (
-                                    <>{notesCount} {notesCount === 1 ? 'note' : 'notes'}</>
+                                    <span className="hover:underline">
+                                      All {restaurantName} notes →
+                                    </span>
                                   )}
                                 </div>
                               </div>

@@ -28,6 +28,15 @@ const RestaurantsPage: React.FC = () => {
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Utility function to normalize restaurant names
+  const normalizeRestaurantName = (name: string) => {
+    return name
+      .toLowerCase() // convert to lowercase
+      .trim() // remove leading/trailing spaces
+      .replace(/\s+/g, '') // remove all spaces
+      .replace(/[^a-z0-9]/g, ''); // remove special characters
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
@@ -56,7 +65,9 @@ const RestaurantsPage: React.FC = () => {
         userNotes.forEach(note => {
           if (note.location?.name) {
             console.log('Processing note with restaurant:', note.location.name);
-            const existing = restaurantMap.get(note.location.name);
+            // Use normalized name as the key
+            const normalizedName = normalizeRestaurantName(note.location.name);
+            const existing = restaurantMap.get(normalizedName);
             const rating = note.rating || 0;
             const createdDate = note.createdAt instanceof Timestamp ? note.createdAt.toDate() : note.createdAt;
             
@@ -69,9 +80,9 @@ const RestaurantsPage: React.FC = () => {
               existing.notes = existing.notes || [];
               existing.notes.push(note);
             } else {
-              restaurantMap.set(note.location.name, {
-                id: note.location.name, // Using name as ID for now
-                name: note.location.name,
+              restaurantMap.set(normalizedName, {
+                id: normalizedName, // Using normalized name as ID
+                name: note.location.name, // Keep original name for display
                 address: note.location.address,
                 visitCount: 1,
                 averageRating: rating,
@@ -123,11 +134,12 @@ const RestaurantsPage: React.FC = () => {
     if (!user) return;
 
     try {
+      const normalizedName = normalizeRestaurantName(restaurantName);
       const isFavorited = await restaurantsService.toggleFavorite(user.uid, restaurantName);
       if (isFavorited) {
         setFavorites(prev => [...prev, restaurantName]);
       } else {
-        setFavorites(prev => prev.filter(name => name !== restaurantName));
+        setFavorites(prev => prev.filter(name => normalizeRestaurantName(name) !== normalizedName));
       }
     } catch (err) {
       console.error('Error toggling favorite:', err);
@@ -136,7 +148,7 @@ const RestaurantsPage: React.FC = () => {
   };
 
   const filteredRestaurants = restaurants.filter(restaurant =>
-    restaurant.name.toLowerCase().includes(searchQuery.toLowerCase())
+    normalizeRestaurantName(restaurant.name).includes(normalizeRestaurantName(searchQuery))
   );
 
   if (!user) {
