@@ -345,18 +345,6 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
             </div>
           </div>
 
-          {/* Pending Follow Requests Section - Only shown on own private profile */}
-          {showPendingRequests && (
-            <div className="bg-white rounded-xl shadow-sm border border-[#E76F51]/10">
-              <div className="p-8">
-                <h2 className="font-serif text-2xl font-semibold text-[#E76F51] mb-6">
-                  Pending Follow Requests
-                </h2>
-                <PendingFollowRequests />
-              </div>
-            </div>
-          )}
-
           {/* Only show these sections if user has full access */}
           {canViewFullProfile && (
             <>

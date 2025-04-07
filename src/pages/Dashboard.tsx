@@ -12,7 +12,9 @@ export const Dashboard: React.FC = () => {
     totalNotes: 0,
     notesThisMonth: 0,
     totalRestaurants: 0,
+    totalRecipes: 0,
     restaurantPercentage: 0,
+    averageRating: 0,
     lastNoteDate: new Date()
   });
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -32,14 +34,21 @@ export const Dashboard: React.FC = () => {
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         
         const restaurantNotes = notes.filter((note: Note) => note.type === 'restaurant');
+        const recipeNotes = notes.filter((note: Note) => note.type === 'recipe');
         const notesThisMonth = notes.filter((note: Note) => note.date.toDate() >= firstDayOfMonth);
         const lastNote = notes[0]; // Assuming notes are sorted by date desc
+
+        // Calculate average rating
+        const totalRating = notes.reduce((sum, note) => sum + (note.rating || 0), 0);
+        const averageRating = notes.length > 0 ? (totalRating / notes.length) : 0;
 
         setStats({
           totalNotes: notes.length,
           notesThisMonth: notesThisMonth.length,
           totalRestaurants: restaurantNotes.length,
+          totalRecipes: recipeNotes.length,
           restaurantPercentage: Math.round((restaurantNotes.length / notes.length) * 100),
+          averageRating: Math.round(averageRating * 10) / 10,
           lastNoteDate: lastNote ? lastNote.date.toDate() : new Date()
         });
 

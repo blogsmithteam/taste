@@ -11,6 +11,39 @@ interface FollowRequest {
   createdAt: Timestamp;
 }
 
+const UserAvatar: React.FC<{ user: User | null }> = ({ user }) => {
+  if (!user) {
+    return (
+      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+        <span className="text-gray-500 text-sm">?</span>
+      </div>
+    );
+  }
+
+  if (user.photoURL) {
+    return (
+      <img
+        className="h-10 w-10 rounded-full object-cover"
+        src={user.photoURL}
+        alt={`${user.username}'s avatar`}
+      />
+    );
+  }
+
+  const initials = user.username
+    .split(' ')
+    .map(name => name[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  return (
+    <div className="h-10 w-10 rounded-full bg-[#E76F51]/10 flex items-center justify-center">
+      <span className="text-[#E76F51] text-sm font-medium">{initials}</span>
+    </div>
+  );
+};
+
 export const PendingFollowRequests: React.FC = () => {
   const { user } = useAuth();
   const [requests, setRequests] = useState<(FollowRequest & { requester: User | null })[]>([]);
@@ -74,11 +107,7 @@ export const PendingFollowRequests: React.FC = () => {
         >
           <div className="flex items-center space-x-4">
             <div className="flex-shrink-0">
-              <img
-                className="h-10 w-10 rounded-full"
-                src={request.requester?.photoURL || '/default-avatar.png'}
-                alt={`${request.requester?.username || 'User'}'s avatar`}
-              />
+              <UserAvatar user={request.requester} />
             </div>
             <div>
               <p className="font-medium text-gray-900">

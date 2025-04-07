@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { format } from 'date-fns';
 import { ChartBarIcon, BuildingStorefrontIcon, ClockIcon } from '@heroicons/react/24/outline';
 
@@ -6,21 +6,25 @@ interface DashboardStatsProps {
   totalNotes: number;
   notesThisMonth: number;
   totalRestaurants: number;
+  totalRecipes: number;
   restaurantPercentage: number;
+  averageRating: number;
   lastNoteDate: Date;
 }
 
 const StatCard: React.FC<{
   title: string;
-  value: string | number;
+  value: string | number | ReactNode;
   subValue?: string;
   icon: React.ElementType;
 }> = ({ title, value, subValue, icon: Icon }) => (
   <div className="bg-white/80 rounded-lg shadow-sm border border-taste-primary/10 p-6">
     <div className="flex items-start justify-between">
       <div>
-        <p className="text-sm font-medium text-taste-primary/70">{title}</p>
-        <p className="mt-2 text-3xl font-semibold text-gray-900">{value}</p>
+        <p className="text-lg font-medium text-[#F28B82]">{title}</p>
+        <div className="mt-2">{typeof value === 'string' || typeof value === 'number' ? (
+          <p className="text-3xl font-semibold text-gray-900">{value}</p>
+        ) : value}</div>
         {subValue && (
           <p className="mt-1 text-sm text-taste-primary/60">{subValue}</p>
         )}
@@ -36,7 +40,9 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   totalNotes,
   notesThisMonth,
   totalRestaurants,
+  totalRecipes,
   restaurantPercentage,
+  averageRating,
   lastNoteDate,
 }) => {
   return (
@@ -48,9 +54,20 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         icon={ChartBarIcon}
       />
       <StatCard
-        title="Restaurants"
-        value={totalRestaurants}
-        subValue={`${restaurantPercentage}% of total`}
+        title="Restaurants & Recipes"
+        value={
+          <div className="flex items-center gap-4">
+            <div>
+              <span className="text-3xl font-semibold text-gray-900">{totalRestaurants}</span>
+              <span className="text-sm text-taste-primary/60 ml-1">restaurants</span>
+            </div>
+            <div>
+              <span className="text-3xl font-semibold text-gray-900">{totalRecipes}</span>
+              <span className="text-sm text-taste-primary/60 ml-1">recipes</span>
+            </div>
+          </div>
+        }
+        subValue={`${averageRating} average rating`}
         icon={BuildingStorefrontIcon}
       />
       <StatCard
