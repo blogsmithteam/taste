@@ -36,10 +36,11 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
   const [favoriteRestaurants, setFavoriteRestaurants] = useState<string[]>([]);
   const [restaurantNotesCounts, setRestaurantNotesCounts] = useState<Record<string, number>>({});
   const [loadingNoteCounts, setLoadingNoteCounts] = useState(false);
+  const [isFollower, setIsFollower] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!userId) return;
+      if (!userId || !user?.uid) return;
 
       try {
         const userProfile = await userService.getUserProfile(userId);
@@ -50,6 +51,8 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
         }
 
         setProfile(userProfile);
+        // Update follower status
+        setIsFollower(userProfile.followers?.includes(user.uid) || false);
       } catch (err) {
         setError('Failed to load profile');
         console.error('Error loading profile:', err);
@@ -64,7 +67,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
   // Determine what content can be shown based on privacy settings
   const canViewFullProfile = !profile?.settings?.isPrivate || 
                            user?.uid === profile?.id || 
-                           profile?.followers?.includes(user?.uid || '');
+                           isFollower;
 
   useEffect(() => {
     const fetchFollowers = async () => {
@@ -543,12 +546,6 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId }) => {
                                 <div className="flex justify-between items-start mb-2">
                                   <h4 className="text-lg font-medium text-taste-primary">{restaurantName}</h4>
                                   <div className="flex items-center gap-2">
-                                    {bestNote && (
-                                      <div className="flex items-center">
-                                        <StarIcon className="h-5 w-5 text-yellow-400 fill-current" />
-                                        <span className="ml-1 text-sm text-gray-600">{bestNote.rating}/5</span>
-                                      </div>
-                                    )}
                                     {user?.uid === userId && (
                                       <button
                                         onClick={(e) => {

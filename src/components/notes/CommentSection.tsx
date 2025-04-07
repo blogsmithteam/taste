@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 import { notesService } from '../../services/notes';
 import { Comment } from '../../types/notes';
-import { HeartIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
+import { HeartIcon, ChatBubbleLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import UserAvatar from '../shared/UserAvatar';
 
@@ -31,6 +31,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   const [noteComments, setNoteComments] = useState<Comment[]>(comments);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Only show for shared notes and when the current user is not the note owner
   const shouldShowInteractions = isSharedNote && user && user.uid !== noteUserId;
@@ -90,6 +91,22 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       setError('Failed to add comment. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!user) return;
+
+    try {
+      setIsDeleting(true);
+      setError(null);
+      await notesService.deleteComment(noteId, commentId, user.uid);
+      setNoteComments((prev) => prev.filter((comment) => comment.id !== commentId));
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+      setError('Failed to delete comment. Please try again.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -171,12 +188,32 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           <h3 className="font-medium text-lg text-gray-900">Comments</h3>
           {noteComments.map((comment) => (
             <div key={comment.id} className="flex gap-4">
-              <UserAvatar username={comment.username} profilePicture={comment.profilePicture} size="sm" />
+              <UserAvatar
+                user={{
+                  uid: comment.userId,
+                  photoURL: comment.profilePicture || null,
+                  displayName: comment.username
+                }}
+                size="sm"
+              />
               <div className="flex-1">
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-medium text-gray-900">{comment.username}</span>
-                    <span className="text-xs text-gray-500">{formatCommentDate(comment.createdAt)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">{formatCommentDate(comment.createdAt)}</span>
+                      {/* Show delete button if user is comment owner or note owner */}
+                      {(user?.uid === comment.userId || user?.uid === noteUserId) && (
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          disabled={isDeleting}
+                          className="text-gray-400 hover:text-red-500 transition-colors"
+                          title="Delete comment"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-gray-700 whitespace-pre-line">{comment.text}</p>
                 </div>

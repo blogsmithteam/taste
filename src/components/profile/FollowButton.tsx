@@ -23,14 +23,20 @@ export const FollowButton: React.FC<FollowButtonProps> = ({ targetUserId, onFoll
           userService.getFollowRequestStatus(user.uid, targetUserId)
         ]);
         setIsFollowing(following);
-        setRequestStatus(requestStatus);
+        setRequestStatus(requestStatus === 'accepted' ? null : requestStatus);
+        
+        // If request was accepted, update following status
+        if (requestStatus === 'accepted') {
+          setIsFollowing(true);
+          onFollowChange?.(true);
+        }
       } catch (err) {
         console.error('Error checking follow status:', err);
       }
     };
 
     checkStatus();
-  }, [user, targetUserId]);
+  }, [user, targetUserId, onFollowChange]);
 
   const handleFollowToggle = async () => {
     if (!user) return;
@@ -41,21 +47,22 @@ export const FollowButton: React.FC<FollowButtonProps> = ({ targetUserId, onFoll
       if (isFollowing) {
         await userService.unfollowUser(user.uid, targetUserId);
         setIsFollowing(false);
-        setRequestStatus(null); // Reset request status after unfollowing
+        setRequestStatus(null);
         onFollowChange?.(false);
       } else {
         try {
           await userService.followUser(user.uid, targetUserId);
-          // Check if a follow request was created (for private profiles)
           const newRequestStatus = await userService.getFollowRequestStatus(user.uid, targetUserId);
           if (newRequestStatus === 'pending') {
             setRequestStatus('pending');
-            // Don't set isFollowing to true for private profiles
-          } else {
-            // For public profiles, set following to true immediately
+          } else if (newRequestStatus === 'accepted') {
             setIsFollowing(true);
+            setRequestStatus(null);
+            onFollowChange?.(true);
+          } else {
+            setIsFollowing(true);
+            onFollowChange?.(true);
           }
-          onFollowChange?.(true);
         } catch (err) {
           if ((err as Error).message === 'Follow request already pending') {
             setRequestStatus('pending');

@@ -252,9 +252,15 @@ service cloud.firestore {
       
       allow update: if isAuthenticated() && (
         isOwner(resource.data.userId) || 
-        // Allow liking/unliking if user can view the note
+        // Allow liking/unliking and commenting if user can view the note
         (canViewNote(resource.data) && 
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'updatedAt']))
+         (
+           // Allow likes/likedBy updates
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'updatedAt']) ||
+           // Allow comments updates
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt'])
+         )
+        )
       );
       
       allow delete: if isAuthenticated() && isOwner(resource.data.userId);

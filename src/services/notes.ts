@@ -3,6 +3,7 @@ import { db } from '../lib/firebase';
 import { User } from 'firebase/auth';
 import { activityService } from './activity';
 import { notificationsService } from './notifications';
+import { getAuth } from 'firebase/auth';
 
 export interface Note {
   id: string;
@@ -134,6 +135,7 @@ export interface NotesService {
   unlikeNote(noteId: string, userId: string): Promise<Note>;
   addComment(noteId: string, userId: string, text: string): Promise<Comment>;
   getComments(noteId: string): Promise<Comment[]>;
+  deleteComment(noteId: string, commentId: string, userId: string): Promise<void>;
 }
 
 export const notesService = {
@@ -701,12 +703,12 @@ export const notesService = {
       const userProfile = userDoc.data() as UserProfile;
       const following = userProfile.following || [];
 
-      // Prepare base constraints
+      // Base query constraints (without date filters)
       const baseConstraints: QueryConstraint[] = [
         where('userId', '!=', userId) // Exclude user's own notes
       ];
       
-      // Apply common filters
+      // Add non-range filters
       if (filters) {
         if (filters.type) {
           baseConstraints.push(where('type', '==', filters.type));
@@ -717,15 +719,6 @@ export const notesService = {
         if (filters.wouldOrderAgain !== undefined) {
           baseConstraints.push(where('wouldOrderAgain', '==', filters.wouldOrderAgain));
         }
-        if (filters.dateFrom) {
-          baseConstraints.push(where('date', '>=', Timestamp.fromDate(filters.dateFrom)));
-        }
-        if (filters.dateTo) {
-          baseConstraints.push(where('date', '<=', Timestamp.fromDate(filters.dateTo)));
-        }
-        if (filters.tags && filters.tags.length > 0) {
-          baseConstraints.push(where('tags', 'array-contains-any', filters.tags));
-        }
         if (filters.userId) {
           baseConstraints.push(where('userId', '==', filters.userId));
         }
@@ -734,16 +727,39 @@ export const notesService = {
       // Add sorting
       baseConstraints.push(orderBy(sortBy, sortDirection));
 
+      // Add date range if specified (after orderBy)
+      if (filters?.dateFrom) {
+        baseConstraints.push(where('date', '>=', Timestamp.fromDate(filters.dateFrom)));
+      }
+      if (filters?.dateTo) {
+        baseConstraints.push(where('date', '<=', Timestamp.fromDate(filters.dateTo)));
+      }
+
       const allNotes: Note[] = [];
 
-      // 1. Query for explicitly shared notes
-      const sharedQuery = query(
-        collection(db, 'notes'),
-        where('sharedWith', 'array-contains', userId),
-        ...baseConstraints
-      );
-      const sharedSnapshot = await getDocs(sharedQuery);
-      
+      // Run queries in parallel for better performance
+      const [sharedSnapshot, publicSnapshot, friendsSnapshot] = await Promise.all([
+        // 1. Query for explicitly shared notes
+        getDocs(query(
+          collection(db, 'notes'),
+          where('sharedWith', 'array-contains', userId),
+          ...baseConstraints
+        )),
+        // 2. Query for public notes
+        getDocs(query(
+          collection(db, 'notes'),
+          where('visibility', '==', 'public'),
+          ...baseConstraints
+        )),
+        // 3. Query for friends-only notes
+        getDocs(query(
+          collection(db, 'notes'),
+          where('visibility', '==', 'friends'),
+          ...baseConstraints
+        ))
+      ]);
+
+      // Process shared notes
       sharedSnapshot.docs.forEach(doc => {
         const data = doc.data();
         allNotes.push({
@@ -755,14 +771,7 @@ export const notesService = {
         } as Note);
       });
 
-      // 2. Query for public notes
-      const publicQuery = query(
-        collection(db, 'notes'),
-        where('visibility', '==', 'public'),
-        ...baseConstraints
-      );
-      const publicSnapshot = await getDocs(publicQuery);
-      
+      // Process public notes
       publicSnapshot.docs.forEach(doc => {
         const data = doc.data();
         allNotes.push({
@@ -774,15 +783,7 @@ export const notesService = {
         } as Note);
       });
 
-      // 3. Query for friends-only notes
-      const friendsQuery = query(
-        collection(db, 'notes'),
-        where('visibility', '==', 'friends'),
-        ...baseConstraints
-      );
-      const friendsSnapshot = await getDocs(friendsQuery);
-
-      // Process each friends-only note
+      // Process friends notes
       const friendsPromises = friendsSnapshot.docs.map(async (docSnapshot) => {
         const data = docSnapshot.data();
         const ownerRef = doc(db, 'users', data.userId);
@@ -807,10 +808,22 @@ export const notesService = {
       const friendsNotes = (await Promise.all(friendsPromises)).filter((note): note is Note => note !== null);
       allNotes.push(...friendsNotes);
 
-      // Remove duplicates
-      const uniqueNotes = Array.from(new Map(allNotes.map(note => [note.id, note])).values());
+      // Remove duplicates and apply any remaining filters
+      let uniqueNotes = Array.from(new Map(allNotes.map(note => [note.id, note])).values());
 
-      // Sort combined results
+      // Apply tag filters client-side if needed
+      if (filters?.tags && filters.tags.length > 0) {
+        uniqueNotes = uniqueNotes.filter(note => 
+          filters.tags!.some(tag => note.tags.includes(tag))
+        );
+      }
+
+      // Apply search term filter client-side
+      if (filters?.searchTerm) {
+        uniqueNotes = uniqueNotes.filter(note => matchesSearchTerm(note, filters.searchTerm!));
+      }
+
+      // Sort the final results
       uniqueNotes.sort((a, b) => {
         const aValue = a[sortBy];
         const bValue = b[sortBy];
@@ -828,14 +841,8 @@ export const notesService = {
           String(aValue).localeCompare(String(bValue));
       });
 
-      // Apply client-side text search if needed
-      let filteredNotes = uniqueNotes;
-      if (filters?.searchTerm) {
-        filteredNotes = uniqueNotes.filter(note => matchesSearchTerm(note, filters.searchTerm!));
-      }
-
       // Apply pagination
-      const paginatedNotes = filteredNotes.slice(0, pageSize);
+      const paginatedNotes = uniqueNotes.slice(0, pageSize);
 
       return {
         notes: paginatedNotes,
@@ -914,16 +921,69 @@ export const notesService = {
       }
 
       const data = noteDoc.data();
-      return {
+      const note = {
         id: noteDoc.id,
         ...data,
         date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
         updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
       } as Note;
+
+      // Get the current user
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        // If no user is logged in, only return public notes
+        if (note.visibility !== 'public') {
+          throw new Error('Missing or insufficient permissions');
+        }
+        return note;
+      }
+
+      // If the user owns the note, they can access it
+      if (note.userId === currentUser.uid) {
+        return note;
+      }
+
+      // Check if the note is explicitly shared with the user
+      if (note.sharedWith?.includes(currentUser.uid)) {
+        return note;
+      }
+
+      // If the note is public, anyone can access it
+      if (note.visibility === 'public') {
+        return note;
+      }
+
+      // For friends-only notes, check if the user is following the note owner
+      if (note.visibility === 'friends') {
+        // Get both user docs in parallel for efficiency
+        const [userDoc, ownerDoc] = await Promise.all([
+          getDoc(doc(db, 'users', currentUser.uid)),
+          getDoc(doc(db, 'users', note.userId))
+        ]);
+
+        if (!userDoc.exists()) {
+          throw new Error('User not found');
+        }
+        if (!ownerDoc.exists()) {
+          throw new Error('Note owner not found');
+        }
+
+        const userProfile = userDoc.data() as UserProfile;
+        const ownerProfile = ownerDoc.data() as UserProfile;
+        const following = userProfile.following || [];
+
+        if (!ownerProfile.settings?.isPrivate || following.includes(note.userId)) {
+          return note;
+        }
+      }
+
+      throw new Error('Missing or insufficient permissions');
     } catch (error) {
       console.error('Error fetching note:', error);
-      throw new Error('Failed to fetch note');
+      throw error;
     }
   },
 
@@ -1073,7 +1133,7 @@ export const notesService = {
     }
   },
 
-  async addComment(noteId: string, userId: string, comment: string): Promise<Note> {
+  async addComment(noteId: string, userId: string, comment: string): Promise<Comment> {
     if (!userId) throw new Error('User ID is required');
     if (!noteId) throw new Error('Note ID is required');
     if (!comment.trim()) throw new Error('Comment cannot be empty');
@@ -1088,7 +1148,7 @@ export const notesService = {
 
       const note = { id: noteDoc.id, ...noteDoc.data() } as Note;
       const comments = note.comments || [];
-      const timestamp = serverTimestamp();
+      const now = Timestamp.now();
 
       // Get user data for the comment
       const userDoc = await getDoc(doc(db, 'users', userId));
@@ -1098,18 +1158,18 @@ export const notesService = {
       const userData = userDoc.data();
 
       // Add the new comment
-      const newComment = {
+      const newComment: Comment = {
         id: crypto.randomUUID(),
         userId,
         username: userData.username,
-        comment,
-        timestamp,
+        text: comment,
+        createdAt: now,
         profilePicture: userData.profilePicture || null
       };
 
       await updateDoc(noteRef, {
         comments: [...comments, newComment],
-        updatedAt: timestamp
+        updatedAt: serverTimestamp()
       });
 
       // Create notification for note owner if the commenter is not the owner
@@ -1126,9 +1186,7 @@ export const notesService = {
         });
       }
 
-      // Get the updated note
-      const updatedNoteDoc = await getDoc(noteRef);
-      return { id: updatedNoteDoc.id, ...updatedNoteDoc.data() } as Note;
+      return newComment;
     } catch (error) {
       console.error('Error adding comment:', error);
       throw new Error('Failed to add comment');
@@ -1151,6 +1209,47 @@ export const notesService = {
     } catch (error) {
       console.error('Error getting comments:', error);
       throw new Error('Failed to get comments');
+    }
+  },
+
+  async deleteComment(noteId: string, commentId: string, userId: string): Promise<void> {
+    if (!userId) throw new Error('User ID is required');
+    if (!noteId) throw new Error('Note ID is required');
+    if (!commentId) throw new Error('Comment ID is required');
+
+    try {
+      const noteRef = doc(db, 'notes', noteId);
+      const noteDoc = await getDoc(noteRef);
+
+      if (!noteDoc.exists()) {
+        throw new Error('Note not found');
+      }
+
+      const note = { id: noteDoc.id, ...noteDoc.data() } as Note;
+      const comments = note.comments || [];
+
+      // Find the comment
+      const comment = comments.find(c => c.id === commentId);
+      if (!comment) {
+        throw new Error('Comment not found');
+      }
+
+      // Check if user is authorized to delete the comment
+      // Allow if user is the comment owner or the note owner
+      if (comment.userId !== userId && note.userId !== userId) {
+        throw new Error('Not authorized to delete this comment');
+      }
+
+      // Remove the comment
+      const updatedComments = comments.filter(c => c.id !== commentId);
+
+      await updateDoc(noteRef, {
+        comments: updatedComments,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      throw new Error('Failed to delete comment');
     }
   }
 }; 

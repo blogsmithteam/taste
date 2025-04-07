@@ -55,6 +55,9 @@ export const BookmarkedNotes: React.FC = () => {
         return;
       }
 
+      // Track inaccessible notes without logging errors
+      const inaccessibleNotes: string[] = [];
+
       // Fetch each bookmarked note
       const bookmarkedNotes = await Promise.all(
         bookmarkedNoteIds.map(async (noteId) => {
@@ -62,11 +65,34 @@ export const BookmarkedNotes: React.FC = () => {
             const note = await notesService.fetchNote(noteId);
             return { ...note, favorite: true }; // Mark as bookmarked
           } catch (err) {
-            console.error(`Error fetching note ${noteId}:`, err);
+            // Silently track inaccessible notes without console errors
+            inaccessibleNotes.push(noteId);
             return null;
           }
         })
       );
+
+      // Handle inaccessible notes message
+      if (inaccessibleNotes.length > 0) {
+        // Only show error if there are inaccessible notes
+        const message = inaccessibleNotes.length === 1
+          ? "A bookmarked note is no longer accessible. The note may have been deleted or its visibility settings changed."
+          : `${inaccessibleNotes.length} bookmarked notes are no longer accessible. These notes may have been deleted or their visibility settings changed.`;
+        
+        setError(message);
+
+        // Optionally clean up inaccessible bookmarks
+        try {
+          await Promise.all(
+            inaccessibleNotes.map(noteId => 
+              bookmarksService.removeBookmark(user.uid, noteId)
+            )
+          );
+        } catch (cleanupErr) {
+          // Silently handle cleanup errors
+          console.debug('Failed to clean up some inaccessible bookmarks');
+        }
+      }
 
       // Filter out any failed fetches and apply filters
       let filteredNotes = bookmarkedNotes.filter((note): note is Note => {
@@ -85,6 +111,14 @@ export const BookmarkedNotes: React.FC = () => {
             (note.location?.name?.toLowerCase().includes(term) ?? false);
           if (!matchesSearch) return false;
         }
+        if (filters.dateFrom) {
+          const noteDate = note.date.toDate();
+          if (noteDate < filters.dateFrom) return false;
+        }
+        if (filters.dateTo) {
+          const noteDate = note.date.toDate();
+          if (noteDate > filters.dateTo) return false;
+        }
         
         return true;
       });
@@ -100,7 +134,7 @@ export const BookmarkedNotes: React.FC = () => {
       // Extract unique tags
       const tags = new Set<string>();
       filteredNotes.forEach(note => {
-        note.tags.forEach((tag: string) => tags.add(tag));
+        note.tags.forEach(tag => tags.add(tag));
       });
       setAvailableTags(Array.from(tags));
 

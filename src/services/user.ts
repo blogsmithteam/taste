@@ -1,9 +1,9 @@
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, FieldValue, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, FieldValue, arrayUnion, arrayRemove, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { User, ProfileFormData, DEFAULT_USER_SETTINGS } from '../types/user';
 import { activityService } from './activity';
 import { notificationsService } from './notifications';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
 
@@ -174,6 +174,21 @@ class UserService {
     });
   }
 
+  async getFollowRequestStatus(fromUserId: string, toUserId: string): Promise<string | null> {
+    const requestsQuery = query(
+      collection(db, 'follow_requests'),
+      where('fromUserId', '==', fromUserId),
+      where('toUserId', '==', toUserId),
+      orderBy('createdAt', 'desc'),
+      limit(1)
+    );
+
+    const requests = await getDocs(requestsQuery);
+    if (requests.empty) return null;
+
+    return requests.docs[0].data().status;
+  }
+
   async handleFollowRequest(requestId: string, status: 'accepted' | 'rejected'): Promise<void> {
     const requestRef = doc(db, 'follow_requests', requestId);
     const requestDoc = await getDoc(requestRef);
@@ -192,18 +207,35 @@ class UserService {
     }
     const currentUser = currentUserDoc.data() as User;
 
+    // Update the request status first
+    await updateDoc(requestRef, {
+      status,
+      updatedAt: timestamp
+    });
+
     if (status === 'accepted') {
-      // Update the follow relationships
-      await Promise.all([
-        updateDoc(doc(db, 'users', request.fromUserId), {
+      // Update the follow relationships in a transaction to ensure consistency
+      await runTransaction(db, async (transaction) => {
+        const fromUserRef = doc(db, 'users', request.fromUserId);
+        const toUserRef = doc(db, 'users', request.toUserId);
+
+        const fromUserDoc = await transaction.get(fromUserRef);
+        const toUserDoc = await transaction.get(toUserRef);
+
+        if (!fromUserDoc.exists() || !toUserDoc.exists()) {
+          throw new Error('User document not found');
+        }
+
+        transaction.update(fromUserRef, {
           following: arrayUnion(request.toUserId),
           updatedAt: timestamp
-        }),
-        updateDoc(doc(db, 'users', request.toUserId), {
+        });
+
+        transaction.update(toUserRef, {
           followers: arrayUnion(request.fromUserId),
           updatedAt: timestamp
-        })
-      ]);
+        });
+      });
 
       // Create notification for the requester
       await notificationsService.createNotification({
@@ -225,12 +257,6 @@ class UserService {
         read: false
       });
     }
-
-    // Update the request status
-    await updateDoc(requestRef, {
-      status,
-      updatedAt: timestamp
-    });
   }
 
   async getPendingFollowRequests(userId: string): Promise<Array<{ id: string; fromUserId: string; createdAt: Timestamp }>> {
@@ -246,22 +272,6 @@ class UserService {
       id: doc.id,
       ...doc.data()
     })) as Array<{ id: string; fromUserId: string; createdAt: Timestamp }>;
-  }
-
-  async getFollowRequestStatus(fromUserId: string, toUserId: string): Promise<string | null> {
-    const requestsQuery = query(
-      collection(db, 'follow_requests'),
-      where('fromUserId', '==', fromUserId),
-      where('toUserId', '==', toUserId),
-      where('status', '==', 'pending')
-    );
-
-    const snapshot = await getDocs(requestsQuery);
-    if (snapshot.empty) {
-      return null;
-    }
-
-    return snapshot.docs[0].data().status;
   }
 
   async unfollowUser(currentUserId: string, targetUserId: string): Promise<void> {
