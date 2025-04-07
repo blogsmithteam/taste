@@ -21,6 +21,7 @@ export const SharedWithMeNotes: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [filters, setFilters] = useState<NoteFilters>({});
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [lastLoadedIndex, setLastLoadedIndex] = useState<number>(0);
 
   const fetchUserInfo = async (userIds: string[]) => {
     const uniqueUserIds = Array.from(new Set(userIds));
@@ -59,6 +60,13 @@ export const SharedWithMeNotes: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
+      console.log('Fetching shared notes with params:', {
+        isInitial,
+        lastVisible: isInitial ? null : lastVisible,
+        filters,
+        pageSize: 10
+      });
+
       const result = await notesService.fetchSharedWithMe(user.uid, {
         filters,
         lastVisible: isInitial ? null : lastVisible,
@@ -67,10 +75,12 @@ export const SharedWithMeNotes: React.FC = () => {
         sortDirection: 'desc',
       });
 
-      const newNotes = isInitial ? result.notes : [...notes, ...result.notes];
-      
-      // Fetch user information for all note owners
-      await fetchUserInfo(newNotes.map(note => note.userId));
+      console.log('Fetched notes result:', {
+        noteCount: result.notes.length,
+        hasLastVisible: !!result.lastVisible,
+        noteIds: result.notes.map(n => n.id),
+        noteTypes: result.notes.map(n => ({ id: n.id, type: n.type, visibility: n.visibility }))
+      });
 
       if (isInitial) {
         setNotes(result.notes);
@@ -82,19 +92,27 @@ export const SharedWithMeNotes: React.FC = () => {
         setAvailableTags(Array.from(tags));
       } else {
         setNotes(prev => {
-          const newNotes = [...prev, ...result.notes];
-          // Update available tags with any new ones
+          // Ensure we don't add duplicates
+          const newNoteIds = new Set(result.notes.map(n => n.id));
+          const existingNotes = prev.filter(n => !newNoteIds.has(n.id));
+          const updatedNotes = [...existingNotes, ...result.notes];
+          
+          // Update available tags
           const tags = new Set<string>(availableTags);
           result.notes.forEach(note => {
             note.tags.forEach(tag => tags.add(tag));
           });
           setAvailableTags(Array.from(tags));
-          return newNotes;
+          
+          return updatedNotes;
         });
       }
 
       setLastVisible(result.lastVisible);
       setHasMore(result.notes.length === 10);
+
+      // Fetch user info for the new notes
+      await fetchUserInfo(result.notes.map(note => note.userId));
     } catch (err) {
       console.error('Error in SharedWithMeNotes:', err);
       if (err instanceof Error) {
@@ -202,6 +220,7 @@ export const SharedWithMeNotes: React.FC = () => {
                   onFavoriteToggle={(noteId, favorite) => handleBookmarkToggle(noteId, !favorite)}
                   isBookmarkView={true}
                   sharedByUser={userInfo[note.userId]}
+                  showWouldOrderAgain={false}
                 />
               </div>
             ))}

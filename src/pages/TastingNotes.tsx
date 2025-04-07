@@ -148,6 +148,7 @@ export const TastingNotes: React.FC = () => {
                   note={note}
                   onClick={() => handleNoteClick(note.id)}
                   onFavoriteToggle={handleFavoriteToggle}
+                  showWouldOrderAgain={false}
                 />
               </div>
             ))}

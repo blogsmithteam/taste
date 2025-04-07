@@ -4,6 +4,7 @@ import { User } from 'firebase/auth';
 import { activityService } from './activity';
 import { notificationsService } from './notifications';
 import { getAuth } from 'firebase/auth';
+import { DocumentData, QuerySnapshot, DocumentSnapshot } from 'firebase/firestore';
 
 export interface Note {
   id: string;
@@ -690,6 +691,7 @@ export const notesService = {
     const {
       filters,
       pageSize = 10,
+      lastVisible,
       sortBy = 'createdAt',
       sortDirection = 'desc'
     } = options;
@@ -703,12 +705,13 @@ export const notesService = {
       const userProfile = userDoc.data() as UserProfile;
       const following = userProfile.following || [];
 
-      // Base query constraints (without date filters)
+      // Base query constraints
       const baseConstraints: QueryConstraint[] = [
-        where('userId', '!=', userId) // Exclude user's own notes
+        where('userId', '!=', userId), // Exclude user's own notes
+        orderBy(sortBy, sortDirection)
       ];
-      
-      // Add non-range filters
+
+      // Add filters
       if (filters) {
         if (filters.type) {
           baseConstraints.push(where('type', '==', filters.type));
@@ -722,70 +725,81 @@ export const notesService = {
         if (filters.userId) {
           baseConstraints.push(where('userId', '==', filters.userId));
         }
+        if (filters.dateFrom) {
+          baseConstraints.push(where('date', '>=', Timestamp.fromDate(filters.dateFrom)));
+        }
+        if (filters.dateTo) {
+          baseConstraints.push(where('date', '<=', Timestamp.fromDate(filters.dateTo)));
+        }
       }
 
-      // Add sorting
-      baseConstraints.push(orderBy(sortBy, sortDirection));
+      // Add pagination
+      baseConstraints.push(limit(pageSize));
+      if (lastVisible) {
+        baseConstraints.push(startAfter(lastVisible));
+      }
 
-      // Add date range if specified (after orderBy)
-      if (filters?.dateFrom) {
-        baseConstraints.push(where('date', '>=', Timestamp.fromDate(filters.dateFrom)));
-      }
-      if (filters?.dateTo) {
-        baseConstraints.push(where('date', '<=', Timestamp.fromDate(filters.dateTo)));
-      }
+      // Create three separate queries for each visibility type
+      const sharedQuery = query(
+        collection(db, 'notes'),
+        where('sharedWith', 'array-contains', userId),
+        ...baseConstraints
+      );
+
+      const publicQuery = query(
+        collection(db, 'notes'),
+        where('visibility', '==', 'public'),
+        ...baseConstraints
+      );
+
+      const friendsQuery = query(
+        collection(db, 'notes'),
+        where('visibility', '==', 'friends'),
+        ...baseConstraints
+      );
+
+      // Execute all queries in parallel
+      const [sharedDocs, publicDocs, friendsDocs] = await Promise.all([
+        getDocs(sharedQuery),
+        getDocs(publicQuery),
+        getDocs(friendsQuery)
+      ]);
 
       const allNotes: Note[] = [];
 
-      // Run queries in parallel for better performance
-      const [sharedSnapshot, publicSnapshot, friendsSnapshot] = await Promise.all([
-        // 1. Query for explicitly shared notes
-        getDocs(query(
-          collection(db, 'notes'),
-          where('sharedWith', 'array-contains', userId),
-          ...baseConstraints
-        )),
-        // 2. Query for public notes
-        getDocs(query(
-          collection(db, 'notes'),
-          where('visibility', '==', 'public'),
-          ...baseConstraints
-        )),
-        // 3. Query for friends-only notes
-        getDocs(query(
-          collection(db, 'notes'),
-          where('visibility', '==', 'friends'),
-          ...baseConstraints
-        ))
-      ]);
-
       // Process shared notes
-      sharedSnapshot.docs.forEach(doc => {
+      sharedDocs.docs.forEach((doc: DocumentSnapshot<DocumentData>) => {
         const data = doc.data();
-        allNotes.push({
-          id: doc.id,
-          ...data,
-          date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
-          createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
-          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
-        } as Note);
+        if (data) {
+          allNotes.push({
+            id: doc.id,
+            ...data,
+            date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+          } as Note);
+        }
       });
 
       // Process public notes
-      publicSnapshot.docs.forEach(doc => {
+      publicDocs.docs.forEach((doc: DocumentSnapshot<DocumentData>) => {
         const data = doc.data();
-        allNotes.push({
-          id: doc.id,
-          ...data,
-          date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
-          createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
-          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
-        } as Note);
+        if (data) {
+          allNotes.push({
+            id: doc.id,
+            ...data,
+            date: data.date instanceof Timestamp ? data.date : Timestamp.fromDate(new Date(data.date)),
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now()
+          } as Note);
+        }
       });
 
       // Process friends notes
-      const friendsPromises = friendsSnapshot.docs.map(async (docSnapshot) => {
+      const friendsPromises = friendsDocs.docs.map(async (docSnapshot: DocumentSnapshot<DocumentData>) => {
         const data = docSnapshot.data();
+        if (!data) return null;
+        
         const ownerRef = doc(db, 'users', data.userId);
         const ownerDoc = await getDoc(ownerRef);
         
@@ -805,48 +819,48 @@ export const notesService = {
         return null;
       });
 
-      const friendsNotes = (await Promise.all(friendsPromises)).filter((note): note is Note => note !== null);
+      const friendsNotes = (await Promise.all(friendsPromises))
+        .filter((note: Note | null): note is Note => note !== null);
       allNotes.push(...friendsNotes);
 
-      // Remove duplicates and apply any remaining filters
-      let uniqueNotes = Array.from(new Map(allNotes.map(note => [note.id, note])).values());
+      // Remove duplicates and sort
+      const uniqueNotes = Array.from(new Map(allNotes.map(note => [note.id, note])).values())
+        .sort((a, b) => {
+          const aValue = a[sortBy];
+          const bValue = b[sortBy];
+          
+          if (aValue instanceof Timestamp && bValue instanceof Timestamp) {
+            return sortDirection === 'desc' ? bValue.toMillis() - aValue.toMillis() : aValue.toMillis() - bValue.toMillis();
+          }
+          
+          if (typeof aValue === 'number' && typeof bValue === 'number') {
+            return sortDirection === 'desc' ? bValue - aValue : aValue - bValue;
+          }
+          
+          return sortDirection === 'desc' ? 
+            String(bValue).localeCompare(String(aValue)) : 
+            String(aValue).localeCompare(String(bValue));
+        });
 
-      // Apply tag filters client-side if needed
+      // Apply remaining filters
+      let filteredNotes = uniqueNotes;
       if (filters?.tags && filters.tags.length > 0) {
-        uniqueNotes = uniqueNotes.filter(note => 
+        filteredNotes = filteredNotes.filter(note => 
           filters.tags!.some(tag => note.tags.includes(tag))
         );
       }
 
-      // Apply search term filter client-side
       if (filters?.searchTerm) {
-        uniqueNotes = uniqueNotes.filter(note => matchesSearchTerm(note, filters.searchTerm!));
+        filteredNotes = filteredNotes.filter(note => matchesSearchTerm(note, filters.searchTerm!));
       }
 
-      // Sort the final results
-      uniqueNotes.sort((a, b) => {
-        const aValue = a[sortBy];
-        const bValue = b[sortBy];
-        
-        if (aValue instanceof Timestamp && bValue instanceof Timestamp) {
-          return sortDirection === 'desc' ? bValue.toMillis() - aValue.toMillis() : aValue.toMillis() - bValue.toMillis();
-        }
-        
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return sortDirection === 'desc' ? bValue - aValue : aValue - bValue;
-        }
-        
-        return sortDirection === 'desc' ? 
-          String(bValue).localeCompare(String(aValue)) : 
-          String(aValue).localeCompare(String(bValue));
-      });
-
-      // Apply pagination
-      const paginatedNotes = uniqueNotes.slice(0, pageSize);
+      // Get the next page of notes
+      const paginatedNotes = filteredNotes.slice(0, pageSize);
+      const lastVisibleNote = paginatedNotes[paginatedNotes.length - 1];
 
       return {
         notes: paginatedNotes,
-        lastVisible: paginatedNotes[paginatedNotes.length - 1]
+        lastVisible: lastVisibleNote
       };
     } catch (error) {
       console.error('Error in fetchSharedWithMe:', error);

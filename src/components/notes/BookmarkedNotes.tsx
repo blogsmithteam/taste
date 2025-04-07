@@ -224,6 +224,7 @@ export const BookmarkedNotes: React.FC = () => {
                   onFavoriteToggle={(noteId, favorite) => handleBookmarkToggle(noteId, !favorite)}
                   isBookmarkView={true}
                   sharedByUser={userInfo[note.userId]}
+                  showWouldOrderAgain={false}
                 />
               </div>
             ))}

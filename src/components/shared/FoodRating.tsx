@@ -9,6 +9,7 @@ export interface FoodRatingProps {
   readonly?: boolean;
   allowClear?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
 export const FoodRating: React.FC<FoodRatingProps> = ({
@@ -17,7 +18,8 @@ export const FoodRating: React.FC<FoodRatingProps> = ({
   error,
   readonly = false,
   allowClear = false,
-  size = 'md'
+  size = 'md',
+  className = ''
 }) => {
   const handleClick = (rating: number) => {
     if (readonly) return;
@@ -42,7 +44,7 @@ export const FoodRating: React.FC<FoodRatingProps> = ({
   const starSize = getStarSize();
 
   return (
-    <div>
+    <div className={className}>
       <div className="flex items-center space-x-1">
         {[1, 2, 3, 4, 5].map((rating) => (
           <button

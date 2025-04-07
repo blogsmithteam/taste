@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import FeatureShowcase from '../components/FeatureShowcase';
 
 const Home: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -105,6 +106,9 @@ const Home: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {/* Feature Showcase Section */}
+      <FeatureShowcase />
       
       {/* Popular Tasting Notes Section */}
       <div id="popular-notes" className="max-w-7xl mx-auto px-4 pb-20 pt-4">

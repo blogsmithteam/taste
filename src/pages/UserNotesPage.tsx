@@ -173,6 +173,7 @@ const UserNotesPage: React.FC = () => {
                 <NoteCard
                   note={note}
                   onClick={() => handleNoteClick(note.id)}
+                  showWouldOrderAgain={false}
                 />
               </div>
             ))}

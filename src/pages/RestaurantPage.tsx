@@ -238,7 +238,10 @@ const RestaurantPage: React.FC = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {restaurant.notes?.map(note => (
             <div key={note.id} onClick={() => handleNoteClick(note.id)} className="card-hover">
-              <NoteCard note={note} />
+              <NoteCard 
+                note={note} 
+                showWouldOrderAgain={false}
+              />
             </div>
           ))}
         </div>
